@@ -4,11 +4,9 @@ Typed Python client for the [Instantly](https://instantly.ai) API v2. Generated 
 
 > Part of the [Instantly Starter Kit](../../README.md). Zero runtime dependencies (stdlib `urllib`).
 
-## Install
+## Use it
 
-```bash
-pip install instantly-sdk
-```
+Not published yet — the kit is clone-based. Scaffolding a project with `create-instantly-app` vendors this SDK into it (`vendor/instantly-sdk`); to use it elsewhere, `pip install -e python/sdk` from your clone (or copy the folder into your app). Once published: `pip install instantly-sdk`.
 
 Requires Python ≥ 3.9.
 

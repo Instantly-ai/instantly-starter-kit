@@ -4,11 +4,9 @@ Typed TypeScript client for the [Instantly](https://instantly.ai) API v2. Genera
 
 > Part of the [Instantly Starter Kit](../../README.md). The Python equivalent lives in [`python/sdk`](../../python/sdk).
 
-## Install
+## Use it
 
-```bash
-npm install @instantly-ai/sdk
-```
+Not published yet — the kit is clone-based. Scaffolding a project with `create-instantly-app` vendors this SDK into it (`vendor/instantly-sdk`); to use it elsewhere, copy this folder into your app or add it as a `file:` dependency. Once published: `npm install @instantly-ai/sdk`.
 
 Requires Node.js ≥ 18 (uses the global `fetch`).
 

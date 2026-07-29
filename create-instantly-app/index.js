@@ -93,6 +93,14 @@ function copySpec(target) {
   fs.copyFileSync(path.join(KIT_ROOT, "spec", "openapi.yaml"), path.join(target, "spec", "openapi.yaml"))
 }
 
+function copyLlms(target) {
+  // The AI-ingestion files — so the project's agent has one-shot context.
+  for (const f of ["llms.txt", "llms-full.txt"]) {
+    const src = path.join(KIT_ROOT, f)
+    if (fs.existsSync(src)) fs.copyFileSync(src, path.join(target, f))
+  }
+}
+
 function vendorSdk(target, lang) {
   const src = path.join(KIT_ROOT, lang === "js" ? "js" : "python", "sdk")
   const dest = path.join(target, "vendor", "instantly-sdk")
@@ -193,6 +201,7 @@ You are helping build a service on top of **Instantly** (cold-email / outreach i
 - **SDK** — \`@instantly-ai/sdk\` (vendored at \`./vendor/instantly-sdk\`; ${lang === "js" ? "JS" : "Python"}). One function per API operation across **all 28 resource groups**, typed error \`InstantlyApiError\`, async polling helpers.
 - **docs/** — [\`conventions.md\`](docs/conventions.md) (auth, pagination, rate limits, async, create-inactive→activate, verify-before-send, webhooks, errors), goal-first [\`docs/api/*\`](docs/api) for the common groups, and [\`quickstart.md\`](docs/quickstart.md).
 - **[\`spec/openapi.yaml\`](spec/openapi.yaml)** — the authoritative full API reference (every operation + field for all 28 groups). Consult it for anything not covered by \`docs/api/*\`.
+- **\`llms.txt\` / \`llms-full.txt\`** — condensed + full one-shot context if you want to load the whole kit at once.
 - **${template === "minimal" ? "src/ (a smoke-check starter)" : "the " + template + " template code"}** — your starting point.
 
 ## How to help
@@ -286,9 +295,10 @@ async function main() {
     copyTree(tplSrc, target, TPL_EXCLUDES)
   }
 
-  // 2) docs + spec + 3) vendored SDK
+  // 2) docs + spec + llms + 3) vendored SDK
   copyDocs(target)
   copySpec(target)
+  copyLlms(target)
   vendorSdk(target, lang)
 
   // 4) wire the SDK dep + name (JS)

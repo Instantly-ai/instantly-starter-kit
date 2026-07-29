@@ -2,9 +2,16 @@
 
 Key → first successful API call in about 90 seconds. This runs `examples/01`, a read-only auth check.
 
-## 1. Get an API key
+## 1. Clone the kit &amp; add your key
 
-In Instantly: **Settings → Integrations → API Keys → Create API Key**. Copy it — it's shown once. Then:
+Nothing is on a registry yet — the kit is clone-based and runs offline.
+
+```bash
+git clone https://github.com/Instantly-ai/instantly-starter-kit
+cd instantly-starter-kit
+```
+
+Get a key in Instantly (**Settings → Integrations → API Keys → Create API Key** — copy it, it's shown once), then:
 
 ```bash
 export INSTANTLY_API_KEY=sk_...   # never hardcode it

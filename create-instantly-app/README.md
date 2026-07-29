@@ -1,13 +1,20 @@
 # create-instantly-app
 
-Scaffold a wrapper service on top of the [Instantly](https://instantly.ai) API in one command — a template + the SDK + `AGENTS.md` + `docs/`, ready for you (or your AI agent) to build on.
+Scaffold a wrapper service on top of the [Instantly](https://instantly.ai) API — a template + the SDK + `AGENTS.md` + `docs/`, ready for you (or your AI agent) to build on.
+
+Not published yet, so run it from a clone of the kit:
 
 ```bash
-npx create-instantly-app@latest my-app
-# or non-interactive:
-npx create-instantly-app@latest my-analytics --template analytics-service --js
-npx create-instantly-app@latest my-outreach  --template outreach-service  --python -y
+git clone https://github.com/Instantly-ai/instantly-starter-kit
+cd instantly-starter-kit
+
+node create-instantly-app/index.js my-app
+# non-interactive:
+node create-instantly-app/index.js my-analytics --template analytics-service --js
+node create-instantly-app/index.js my-outreach  --template outreach-service  --python -y
 ```
+
+> Once published, this becomes `npx create-instantly-app@latest my-app`.
 
 ## Options
 

@@ -1,0 +1,26 @@
+# Instantly Starter Kit
+
+> Build wrapper services on top of the Instantly API (cold email / outreach infrastructure). Typed SDKs for JavaScript + Python (generated from one OpenAPI spec, all 28 API groups / 168 operations), AI-first docs, runnable templates, and a one-command scaffolder. Repo-based: clone it, point your coding agent at it, and build.
+
+## Start here
+- [Quickstart](docs/quickstart.md): clone → auth smoke check in ~90s.
+- [AGENTS.md](AGENTS.md): the always-on map + rules + guided build flow your agent reads first.
+- [Conventions](docs/conventions.md): auth, pagination, rate limits, async jobs, create-inactive→activate, verify-before-send, webhooks, errors.
+- [Full context for agents](llms-full.txt): AGENTS.md + conventions + every API guide, concatenated.
+
+## API guides (goal-first)
+- [Campaigns](docs/api/campaigns.md)
+- [Leads](docs/api/leads.md)
+- [Enrichment](docs/api/enrichment.md)
+- [Verification](docs/api/verification.md)
+- [Emails](docs/api/emails.md)
+- [Analytics](docs/api/analytics.md)
+- [Accounts](docs/api/accounts.md)
+- [Webhooks](docs/api/webhooks.md)
+
+## Build
+- [Scaffolder](create-instantly-app/README.md): `node create-instantly-app/index.js my-app --template <name> --js|--python` — scaffolds a project with the SDK + docs + AGENTS.md vendored in.
+- [JS SDK](js/sdk/README.md) · [Python SDK](python/sdk/README.md) · [Examples](js/examples) · Templates: outreach-service, reply-automation, analytics-service, lead-pipeline.
+
+## Reference
+- [spec/openapi.yaml](spec/openapi.yaml): the authoritative full API surface (OpenAPI 3.1).
