@@ -1,0 +1,7 @@
+[project]
+name = "analytics-service"
+version = "0.1.0"
+description = "Scheduled analytics pull -> normalize -> serve as a JSON endpoint feed."
+requires-python = ">=3.9"
+# Install the local SDK:  pip install -e ../../sdk   (or add ../../sdk to PYTHONPATH)
+dependencies = []

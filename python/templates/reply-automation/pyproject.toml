@@ -1,0 +1,7 @@
+[project]
+name = "reply-automation"
+version = "0.1.0"
+description = "Webhook receiver -> classify reply -> route (set interest status / auto-respond)."
+requires-python = ">=3.9"
+# Install the local SDK:  pip install -e ../../sdk   (or add ../../sdk to PYTHONPATH)
+dependencies = []

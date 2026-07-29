@@ -1,0 +1,19 @@
+{
+  "name": "analytics-service",
+  "private": true,
+  "type": "module",
+  "description": "Scheduled analytics pull → normalize → serve as a JSON endpoint feed.",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "@instantly-ai/sdk": "file:../../sdk"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.2"
+  }
+}

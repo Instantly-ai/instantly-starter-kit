@@ -1,0 +1,49 @@
+# Quickstart
+
+Key → first successful API call in about 90 seconds. This runs `examples/01`, a read-only auth check.
+
+## 1. Get an API key
+
+In Instantly: **Settings → Integrations → API Keys → Create API Key**. Copy it — it's shown once. Then:
+
+```bash
+export INSTANTLY_API_KEY=sk_...   # never hardcode it
+```
+
+## 2. Run the smoke check
+
+### JavaScript
+
+```bash
+# Build the SDK once (examples/templates link to its built output)
+cd js/sdk && npm install && npm run build && cd ..
+
+cd js/examples
+npm install          # links the local SDK (file:../sdk)
+npm run 01           # → lists your campaigns; confirms the key works
+```
+
+### Python
+
+```bash
+cd python/sdk && pip install -e .          # install the local SDK
+cd ../examples
+python 01_auth_smoke_check.py              # → lists your campaigns
+```
+
+## 3. You should see
+
+```
+✓ Key works. First page of campaigns:
+{ ... }
+```
+
+If you get a `401`, the key is missing or invalid. Any other error prints its status + payload (`InstantlyApiError`).
+
+## Next
+
+- **Build something** — open [`AGENTS.md`](../AGENTS.md); it maps the API and walks an agent through building a wrapper.
+- **Learn the rules** — [`docs/conventions.md`](conventions.md) (auth, pagination, rate limits, async, create-inactive→activate, verify-before-send, webhooks, errors).
+- **Per-group guides** — [`docs/api/`](api/).
+- **Fork a template** — the hero [`outreach-service`](../js/templates/outreach-service) runs the full flow (list → verify → campaign → launch → replies); also [`reply-automation`](../js/templates/reply-automation), [`analytics-service`](../js/templates/analytics-service), [`lead-pipeline`](../js/templates/lead-pipeline).
+- **More examples** — [`js/examples`](../js/examples) / [`python/examples`](../python/examples): create a draft, add + verify leads, enrich, launch, handle replies.

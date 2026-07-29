@@ -1,0 +1,52 @@
+# Accounts (senders, warmup, OAuth)
+
+Manage the email accounts that *send* your campaigns: connect them, warm them up, check their health. Reach for this group to onboard senders and keep deliverability healthy. Related: [campaigns](campaigns.md) (`email_list` = these accounts), [analytics](analytics.md) (warmup/daily analytics).
+
+## Connecting a sender (OAuth)
+
+The cleanest way to add a Google/Microsoft sender is the **OAuth flow** — init, send the user to `auth_url`, then poll.
+
+```ts
+import { initGoogleOAuth, getOAuthSessionStatus } from "@instantly-ai/sdk"
+import { pollOauthSessionStatus } from "@instantly-ai/sdk"
+
+const { auth_url, session_id } = await initGoogleOAuth(client, { body: { /* redirect, etc. */ } })
+// → send the user to auth_url in a browser…
+const result = await pollOauthSessionStatus(client, session_id)   // polls getOAuthSessionStatus
+```
+
+## Managing accounts
+
+```ts
+import { listAccount, enableWarmupForAccounts, testAccountVitals } from "@instantly-ai/sdk"
+
+const accounts = await listAccount(client, { query: { limit: 100 } })
+
+// Warmup toggle is a BACKGROUND JOB — poll it
+const job = await enableWarmupForAccounts(client, { body: { emails: ["s1@acme.com"] } })
+await waitForBackgroundJob(client, job.id)
+```
+
+Also: `createAccount`, `getAccount` (`{email}`), `patchAccount`, `deleteAccount`, `pauseAccount`, `resumeAccount`, `markAccountFixed`, `disableWarmupForAccounts`, `getCtdStatus`, `moveAccounts`, plus analytics (`getWarmupAnalytics`, `getDailyAccountAnalytics` — see [analytics](analytics.md)).
+
+## Object shapes that matter
+
+| Field | Set / Read | Notes |
+|---|---|---|
+| `email` | set / path | accounts are keyed by **email in the path**, not a UUID |
+| `provider_code` | set | `1` Custom IMAP/SMTP, `2` Google, `3` Microsoft, `4` AWS, `8` AirMail — must match, or the account won't work |
+| imap/smtp credentials | set | required for Custom IMAP/SMTP; for Google/Microsoft use OAuth instead |
+| `warmup` (`limit`, `reply_rate`, `increment`, `advanced.*`) | set | warmup config |
+| `enable_slow_ramp`, `daily_limit`, `sending_gap` | set | pacing / ramp |
+| `status` | **read** | 1 Active, 2 Paused, 3 maintenance (auto-resume), −1 Connection, −2 Soft Bounce, −3 Sending |
+| `warmup_status` | **read** | 0 Paused, 1 Active, −1 Banned, −2 Spam-folder, −3 Suspension |
+
+## Gotchas
+
+- **OAuth sessions expire in 10 minutes**, are one-time-use (deleted after the first success/error read → `404` after), and poll at ~5 s. Google is **GSuite only** (personal `@gmail` rejected); Microsoft allows business + personal. `init` is rate-limited (75/min·workspace + 150/min·IP) and returns only `200`/`429`/`503`.
+- **Warmup enable/disable are background jobs** (`type: update-warmup-accounts`) — poll `/background-jobs/{id}`. The op is **`/disable`, not `/pause`**.
+- Accounts are addressed by **email in the path** (`getAccount({ path: { email } })`, `deleteAccount({ path: { email } })`).
+- **`moveAccounts` requires an ADMIN-workspace key**, and source + destination must share the same admin workspace (see [conventions → sub-workspace](../conventions.md#admin-acting-as-a-sub-workspace)). Destructive across workspaces — guard it.
+
+## See also
+Templates: [`outreach-service`](../../js/templates/outreach-service) (preflight sender health before launch). Warmup/daily analytics: [analytics](analytics.md).

@@ -1,0 +1,7 @@
+[project]
+name = "lead-pipeline"
+version = "0.1.0"
+description = "SuperSearch -> enrich -> verify -> dedupe -> sync to a DB/CRM (optional template)."
+requires-python = ">=3.9"
+# Install the local SDK:  pip install -e ../../sdk   (or add ../../sdk to PYTHONPATH)
+dependencies = []

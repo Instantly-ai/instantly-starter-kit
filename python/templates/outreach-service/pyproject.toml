@@ -1,0 +1,9 @@
+[project]
+name = "outreach-service"
+version = "0.1.0"
+description = "Hero template: BYO audience -> list -> enrich + verify -> campaign -> launch -> reply webhook -> status."
+requires-python = ">=3.9"
+# The SDK is a local package in this monorepo — install it separately:
+#   pip install -e ../../sdk
+# (or add ../../sdk to PYTHONPATH). When instantly-sdk is published, add it here.
+dependencies = []
