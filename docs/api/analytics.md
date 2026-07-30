@@ -1,0 +1,43 @@
+# Analytics
+
+Read sending and performance data for campaigns and accounts. Reach for this group to build dashboards, monitor health, or feed a reporting pipeline. This doc curates the analytics operations that live across the **campaign** and **account** groups. Related: [campaigns](campaigns.md), [accounts](accounts.md), [webhooks](webhooks.md) (event aggregates).
+
+## Key operations (SDK calls)
+
+```ts
+import { getCampaignAnalytics, getCampaignAnalyticsOverview,
+         getDailyCampaignAnalytics, getDailyAccountAnalytics,
+         getWarmupAnalytics, getWebhookEventsSummary } from "@instantly-ai/sdk"
+
+// One campaign (pass id) or ALL campaigns (omit id / use ids)
+const all = await getCampaignAnalytics(client, { query: { start_date, end_date } })
+const one = await getCampaignAnalytics(client, { query: { id: campaignId } }) // → an array (one element when scoped by id); empty [] until the campaign has sent
+
+// Daily time series
+const daily = await getDailyCampaignAnalytics(client, { query: { id: campaignId } })
+
+// Account-side (note: warmup analytics is a POST with a required body)
+const warmup = await getWarmupAnalytics(client, { body: { emails: ["s1@acme.com"] } })
+```
+
+Campaign: `getCampaignAnalytics`, `getCampaignAnalyticsOverview`, `getDailyCampaignAnalytics`, `getCampaignStepsAnalytics`, `countLaunched`. Account: `getDailyAccountAnalytics`, `getWarmupAnalytics`. Events: `getWebhookEventsSummary`, `getWebhookEventsSummaryByDate` (see [webhooks](webhooks.md)).
+
+## Object shapes that matter
+
+| Field | Set / Read | Notes |
+|---|---|---|
+| `id` / `ids` | query | one campaign vs many; **omit for all campaigns** |
+| `start_date`, `end_date` | query | window |
+| `campaign_status` | query | filter overview by status (`-99…4`) |
+| `exclude_total_leads_count`, `expand_crm_events` | query | trim / expand payload |
+| `emails` | **body** (required) | `getWarmupAnalytics` only |
+
+## Gotchas
+
+- **Omit `id`** on `getCampaignAnalytics` / `…Overview` to get **all** campaigns; pass `id` (or `ids`) to scope.
+- **`getWarmupAnalytics` is a `POST`** with a **required `emails` array** — unusual for an analytics read.
+- These are read endpoints (`200`); validation errors return `400`.
+- Respect rate limits when polling on a schedule — spread pulls; cache where you can (see [conventions → rate limits](../conventions.md#rate-limits--backoff)).
+
+## See also
+Template: [`analytics-service`](../../js/templates/analytics-service) (scheduled pull → normalize → endpoint feed). Campaign context: [campaigns](campaigns.md); account/warmup context: [accounts](accounts.md).

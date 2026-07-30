@@ -1,0 +1,18 @@
+{
+  "name": "lead-pipeline",
+  "private": true,
+  "type": "module",
+  "description": "SuperSearch → enrich → verify → dedupe → sync to a DB/CRM (optional template).",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@instantly-ai/sdk": "file:../../sdk"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.2"
+  }
+}

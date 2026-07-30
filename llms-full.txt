@@ -1,0 +1,734 @@
+# Instantly Starter Kit — full agent context
+
+> Concatenation of AGENTS.md + conventions + all API guides + quickstart. Source of truth: spec/openapi.yaml. Repo: https://github.com/Instantly-ai/instantly-starter-kit
+
+
+==============================================================================
+# AGENTS.md
+==============================================================================
+
+# AGENTS.md — Instantly Starter Kit
+
+You are a coding agent helping a developer build a **wrapper service** on top of Instantly. This file is your always-on map: what the kit is, which API group does what, the rules that matter, and the flow to follow. Route into [`docs/api/`](docs/api) for per-group detail and [`docs/conventions.md`](docs/conventions.md) for the cross-cutting rules — don't restate them here.
+
+## What this kit is
+
+- **SDK (runtime):** typed clients in [`js/sdk`](js/sdk) and [`python/sdk`](python/sdk), both generated from [`spec/openapi.yaml`](spec/openapi.yaml). The wrapper service imports the SDK. Covers all 28 API groups.
+- **Docs + this file (build-time):** the agent layer that helps you build. Not shipped into the user's runtime.
+- **Templates** ([`js/templates`](js/templates)) and **examples** ([`js/examples`](js/examples) / [`python/examples`](python/examples)) to fork and copy.
+- **No CLI.** Wrapper services import the SDK; they don't run a CLI.
+
+The user uses Instantly for the email/deliverability/inbox/analytics backend and adds their own audience, logic, and UI on top.
+
+## Guided build flow
+
+1. **Ask what they're building** — a thin wrapper, a sync system, an admin tool, or an opinionated workflow service? What's the core job?
+2. **Classify** into one or more families (see the map below): campaign orchestration · lead/list management · reply/webhook sync · OAuth account connection · analytics/diagnostics · deliverability/enrichment · workspace/admin.
+3. **Load the relevant [`docs/api/*`](docs/api)** for those families — that's where the real operations, shapes, and gotchas live.
+4. **Plan the wrapper** — name the operations and flow before writing code; propose the architecture.
+5. **Scaffold from the closest [template](js/templates)** rather than greenfield.
+6. **Build against the SDK** — compose your business logic around SDK calls; keep the wrapper thin.
+7. **Verify** — run the flow; check sending status / job completion; handle errors.
+
+## API-group map (28 groups)
+
+The 8 **bold** files are the goal-first guides in [`docs/api/`](docs/api); the rest are covered via conventions/reference.
+
+**Outreach Execution** — [**campaigns**](docs/api/campaigns.md) (`campaign`, `campaignsubsequence`) · [**leads**](docs/api/leads.md) (`lead`, `leadlist`, `leadlabel`) · [**emails**](docs/api/emails.md) (`email`) · `account` → [**accounts**](docs/api/accounts.md) · `accountcampaignmapping`.
+**Deliverability & Enrichment** — [**enrichment**](docs/api/enrichment.md) (`supersearchenrichment`) · [**verification**](docs/api/verification.md) (`emailverification`) · `inboxplacementtest` / `inboxplacementanalytics` / `inboxplacementblacklistandspamassassinreport` → [**analytics**](docs/api/analytics.md) · `blocklistentry`.
+**Integrations & Events** — [**webhooks**](docs/api/webhooks.md) (`webhook`, `webhookevent`) · `oauth` → [**accounts**](docs/api/accounts.md).
+**Analytics** — campaign + account analytics ops → [**analytics**](docs/api/analytics.md).
+**Workspace & Admin** — `workspace`, `workspacemember`, `workspacegroupmember`, `workspacebilling`, `apikey`, `crmactions`.
+**Operations & Diagnostics** — `backgroundjob` (poll async jobs), `auditlog`.
+**Support** — `customtag`, `customtagmapping`, `dfyemailaccountorder`.
+
+Every group + operation (all 28 / 168) is in [`spec/openapi.yaml`](spec/openapi.yaml) — consult it for any group not covered by a `docs/api/*` guide.
+
+## Routing table (intent → docs → example → template)
+
+| The user wants to… | Read | Example | Template |
+|---|---|---|---|
+| Build + launch outbound | [campaigns](docs/api/campaigns.md), [leads](docs/api/leads.md), [accounts](docs/api/accounts.md) | `02`, `05` | [outreach-service](js/templates/outreach-service) |
+| Source/enrich an audience | [enrichment](docs/api/enrichment.md), [leads](docs/api/leads.md) | `04` | [lead-pipeline](js/templates/lead-pipeline) |
+| Verify before sending | [verification](docs/api/verification.md), [leads](docs/api/leads.md) | `03` | [outreach-service](js/templates/outreach-service) |
+| Handle replies / events | [webhooks](docs/api/webhooks.md), [emails](docs/api/emails.md) | `06` | [reply-automation](js/templates/reply-automation) |
+| Connect sending accounts | [accounts](docs/api/accounts.md) (OAuth) | — | [outreach-service](js/templates/outreach-service) |
+| Report on performance | [analytics](docs/api/analytics.md) | — | [analytics-service](js/templates/analytics-service) |
+| Just check the key works | [campaigns](docs/api/campaigns.md) (`listCampaign`) | `01` | — |
+
+## Conventions you must honor
+
+Full detail in [`docs/conventions.md`](docs/conventions.md). The essentials:
+
+- **API key from env, never hardcoded** (`Authorization: Bearer` handled by the SDK).
+- **Campaigns create inactive → activate.** `createCampaign` returns a Draft; `activateCampaign` sends. Gate activation behind a preflight (verified leads + healthy senders).
+- **Verify before send.** Verify recipients (`verify_leads_on_import` / `createEmailVerification`); keep `allow_risky_contacts` off.
+- **Poll async ops.** Background jobs (`waitForBackgroundJob`), `202` responses, and poll-by-status (verification, OAuth). Ignore the manifest's blanket `async_behavior`.
+- **Pagination** is cursor-based (`limit` + `starting_after` → `next_starting_after`); `listLeads` is a POST.
+- **Rate limits** are workspace-wide (100/s, 6000/min) with lower per-endpoint caps (e.g. `listEmail` 20/min).
+- **Webhooks** have no HMAC (use custom `headers`); subscription vs payload `event_type` names differ; `email_id` = `reply_to_uuid`.
+- **Errors** raise `InstantlyApiError { status, statusText, payload }`.
+
+## Rules for building
+
+- **Prefer the SDK** over ad-hoc HTTP. One function per operation: `fn(client, { path?, query?, body? })` (JS camelCase, Python snake_case).
+- **Never invent** fields, scopes, endpoints, or response shapes. Ground every call in a real operation — the authoritative source is [`spec/openapi.yaml`](spec/openapi.yaml); the goal-first summaries are in `docs/api/*`.
+- **Keep wrappers thin** — business logic composed around SDK calls, typed request/response preserved.
+- **Add polling** where an operation is async (see conventions).
+- **Guard destructive operations** (deletes, cross-workspace `moveAccounts`, bulk deletes) — never run them unguarded against a live/shared workspace.
+- Don't dump raw API/scrape content at the user; explain and act.
+
+## Where things are
+
+`spec/openapi.yaml` (source of truth) · `js/`, `python/` (SDK + examples + templates) · `docs/conventions.md` + `docs/api/*` (guides) · `create-instantly-app/` (scaffolder) · `AGENTS.md` (this file).
+
+
+
+==============================================================================
+# docs/conventions.md
+==============================================================================
+
+# Conventions
+
+The cross-cutting rules for building on the Instantly API with this SDK. Read this once; the per-group guides in [`docs/api/`](api/) assume it. This is the context a developer would otherwise spend a day gathering.
+
+## Authentication
+
+The API uses a **bearer token**. Create a key in Instantly under **Settings → Integrations → API Keys** (choose a name + scopes). The key is shown **once** — store it securely; it can't be recovered.
+
+The SDK adds `Authorization: Bearer <key>` for you. Pass the key from the environment — **never hardcode it**.
+
+```ts
+// JS  ·  import { createInstantlyClient } from "@instantly-ai/sdk"
+const client = createInstantlyClient({ apiKey: process.env.INSTANTLY_API_KEY! })
+```
+```python
+# Python  ·  from instantly import create_instantly_client
+client = create_instantly_client(os.environ["INSTANTLY_API_KEY"])
+```
+
+- **Base URL:** `https://api.instantly.ai`; all v2 paths are under `/api/v2`. The SDK handles this.
+- **Two languages, one surface:** JS functions are `camelCase` (`listCampaign`), Python are `snake_case` (`list_campaign`). Both take `(client, request)` where `request` is `{ path?, query?, body?, headers? }`.
+
+## Scopes
+
+Keys carry scopes shaped `<resource>:<action>` where action ∈ `read | create | update | delete | all`, plus wildcards `all:<action>` and `all:all`. Each operation lists its accepted scopes (in the manifest and each API doc). Give a key the **least** it needs. A few resource names differ from the URL slug: `lead-labels:*`, `background-jobs:*`, `email_verifications:*` (read/create/all only), `supersearch_enrichments:*` (read/create/all only).
+
+## Pagination
+
+List endpoints use **cursor pagination**: pass `limit` (max 100) and `starting_after`; the response returns `next_starting_after` — feed it back as the next `starting_after`. `next_starting_after` may be a UUID, timestamp, or email depending on the endpoint.
+
+```ts
+let cursor: string | undefined
+do {
+  const page = await listCampaign(client, { query: { limit: 100, starting_after: cursor } })
+  if (!page.items?.length) break // last non-empty page can still return a cursor; stop on an empty page
+  // …handle page.items…
+  cursor = page.next_starting_after
+} while (cursor)
+```
+
+> A page can carry a `next_starting_after` even when it's the last one with data; the follow-up fetch then returns no items. Break on an empty page (as above) to avoid one extra empty request.
+
+> **`listLeads` is a `POST`** (`/api/v2/leads/list`) — a deliberate deviation for complex filters. Its `limit`/`starting_after` go in the **body**. (Ordering is chronological only for leads created on/after 2025-10-15.)
+
+## Rate limits & backoff
+
+- Global: **100 requests/second** *and* **6,000 requests/minute** — hitting either returns `429`. Limits are **workspace-wide**, shared across API v1 + v2 and across all keys.
+- The SDK auto-retries `429` and `5xx` with linear backoff (`maxRetries`, default 1). For bulk work, batch (e.g. 1000 leads/call, pause between batches) and spread scheduled jobs.
+- **Lower per-endpoint limits** (respect them explicitly):
+
+  | Endpoint | Limit |
+  |---|---|
+  | `listEmail` (`GET /emails`) | 20 / min |
+  | `sendTestEmail` (`POST /emails/test`) | 10 / min per workspace |
+  | `testAiReplyLabelLeadLabels` | 500 / 30 days per workspace (test endpoint only) |
+  | `initGoogleOAuth` / `initMicrosoftOAuth` | 75 / min per workspace + 150 / min per IP |
+  | `checkDomainsAvailability` | 30 / min or 900 / hour |
+
+  OAuth IP blocks escalate (30 min → 2 h → 24 h) and return `429` with a `Retry-After` header (seconds); upstream provider throttling returns `503`.
+
+## Idempotency
+
+There is **no idempotency-key mechanism**. Don't assume retries are safe on writes. Use the built-in safeguards instead: lead dedupe flags (`skip_if_in_workspace`, `skip_if_in_campaign`, `skip_if_in_list`) and blocklist checks. The SDK only auto-retries `429`/`5xx`.
+
+## Async operations — poll, don't assume
+
+Some endpoints do work in the background. Three patterns:
+
+1. **Background job** → the response is a job; poll `GET /api/v2/background-jobs/{id}` until `status ∈ {completed, success, failed, error}`. Use the SDK helper:
+   ```ts
+   const job = await waitForBackgroundJob(client, jobId)   // Python: polling.wait_for_background_job
+   ```
+   Job-returning ops include `enableWarmupForAccounts` / `disableWarmupForAccounts`, `moveLeads`, and `bulkAddLeads` when `verify_leads_on_import: true`.
+2. **HTTP `202 Accepted`** → accepted, not done: `updateLeadInterestStatus`, `bulkAssignLeads`.
+3. **Poll-by-status** → `createEmailVerification` returns `verification_status: "pending"` if it takes > 10 s (then poll `checkVerificationStatus`); OAuth returns `auth_url` + `session_id`, then poll `getOAuthSessionStatus` (helper: `pollOauthSessionStatus`). SuperSearch enrichments run after creation — poll `getEnrichmentForResource`.
+
+> The manifest's `async_behavior` field flags *every* operation as a background job — ignore it. The list above is the real one, sourced from the endpoint docs.
+
+## Campaigns: create-inactive → activate
+
+Creating a campaign **never sends**. `createCampaign` returns a **Draft** (`status: 0`). Sending is a separate, explicit step — `activateCampaign` — and should be gated by a preflight (verified leads present, senders connected + healthy). `pauseCampaign` stops it. Campaign `status`: `0` Draft · `1` Active · `2` Paused · `3` Completed · `4` Running Subsequences · negative = suspended/unhealthy/bounce-protect.
+
+## Verify before you send
+
+Protect deliverability by verifying recipients first:
+- Standalone: `createEmailVerification` → `checkVerificationStatus`.
+- On import: `bulkAddLeads` / `createLead` accept `verify_leads_on_import` (spawns a background verify job) and honor a `blocklist_id`.
+- Per list: `getVerificationStats`.
+- Campaign risk toggle: `allow_risky_contacts` (default off → risky contacts skipped).
+
+## Warmup & deliverability
+
+- Toggle warmup with `enableWarmupForAccounts` / `disableWarmupForAccounts` (background jobs — **not** "pause"). Configure via the account `warmup` object (`limit`, `reply_rate`, `increment`, advanced flags).
+- Account health is read-only: `status` (1 Active, 2 Paused, 3 maintenance-auto-resume, −1 Connection Error, −2 Soft Bounce, −3 Sending Error) and `warmup_status` (0 Paused, 1 Active, −1 Banned, −2 Spam-folder, −3 Suspension).
+- Deliverability levers: `enable_slow_ramp`, `daily_limit`, `sending_gap`; campaign-side `stop_on_reply`, `insert_unsubscribe_header`, `email_gap`, `random_wait_max`; diagnostics via `testAccountVitals`, inbox-placement tests, and the blocklist.
+
+## Webhooks (replies & events)
+
+Create a subscription with `createWebhook` — only `target_hook_url` is required; scope with `event_type` (or `"all_events"`) and optionally a single `campaign`. For replies subscribe to `reply_received`.
+
+- **No HMAC/signature** is provided. The only delivery-auth is the optional `headers` object you set on the webhook and verify on your receiver.
+- Webhooks **auto-disable** after repeated delivery failures → re-enable with `resumeWebhook`; validate with `testWebhook`.
+- The payload's `email_id` is the `reply_to_uuid` — pass it to `replyToEmail` to respond in-thread.
+- **Event-type naming differs between subscription and payload** — subscribe with e.g. `email_link_clicked` / `reply_received`, but match on the payload's actual `event_type` (e.g. `link_clicked`, `auto_reply_received`). Custom workspace labels arrive as their raw label string. List everything with `listWebhookEventTypes`.
+
+## Errors
+
+Non-2xx responses raise **`InstantlyApiError`** with `status`, `statusText`, and the parsed `payload`. The payload shape is uniform:
+
+```json
+{ "statusCode": 404, "error": "Not Found", "message": "Resource not found" }
+```
+
+Common: `401` (missing/invalid key), `402` (no active paid plan), `404`, `429` (rate limit), `400` (validation). Most writes succeed with `200`; exceptions: `shareCampaign` → `204`, `updateLeadInterestStatus` & `bulkAssignLeads` → `202`. A few endpoints (e.g. `sendTestEmail`) can return `200` with an error in the body — check the body.
+
+```ts
+import { InstantlyApiError } from "@instantly-ai/sdk"
+try { await getCampaign(client, { path: { id } }) }
+catch (e) { if (e instanceof InstantlyApiError) console.error(e.status, e.payload) }
+```
+
+## Admin: acting as a sub-workspace
+
+With an admin-workspace key you can act on a sub-workspace by adding the header `x-as-workspace: <sub_workspace_id>` (via `request.headers` / `defaultHeaders`). Required for cross-workspace admin flows like `moveAccounts`.
+
+
+
+==============================================================================
+# docs/api/campaigns.md
+==============================================================================
+
+# Campaigns
+
+Create, configure, launch, and monitor outbound campaigns. A campaign holds the email **sequence**, the **schedule**, the **sender accounts**, and sending rules. Reach for this group when your product builds and runs outreach on the user's behalf. Related: [leads](leads.md) (who you send to), [accounts](accounts.md) (who you send from), [analytics](analytics.md) (how it did), [webhooks](webhooks.md) (replies).
+
+## The one rule that trips everyone up
+
+**Creating a campaign never sends.** `createCampaign` returns a **Draft** (`status: 0`). You start it with a *separate* call, `activateCampaign`, and only after a preflight. See [conventions → create-inactive → activate](../conventions.md#campaigns-create-inactive--activate).
+
+## Key operations (SDK calls)
+
+```ts
+import { createCampaign, activateCampaign, pauseCampaign,
+         getCampaignSendingStatus, listCampaign } from "@instantly-ai/sdk"
+
+// 1) Create as a draft (does NOT send)
+const draft = await createCampaign(client, {
+  body: {
+    name: "Q3 – founders",
+    campaign_schedule: { schedules: [/* days/hours/timezone */] },
+    sequences: [{ steps: [/* subject + body + delay */] }],  // only sequences[0] is used
+    email_list: ["sender1@acme.com"],                         // sender accounts
+    stop_on_reply: true,
+  },
+})
+
+// 2) Launch it (separate, explicit — gate behind a preflight)
+await activateCampaign(client, { path: { id: draft.id } })
+
+// 3) Why isn't it sending?
+const status = await getCampaignSendingStatus(client, { path: { id: draft.id } })
+```
+
+Also: `getCampaign`, `patchCampaign`, `deleteCampaign`, `duplicate`, `shareCampaign`, `addVariables`, and the analytics ops (see [analytics](analytics.md)).
+
+## Object shapes that matter
+
+| Field | Set / Read | Notes |
+|---|---|---|
+| `name` | set (required) | |
+| `campaign_schedule` | set (required) | sending windows + timezone |
+| `sequences` | set | array, but **only `sequences[0]`** is used for the email copy |
+| `email_list` | set | sender accounts; on `patchCampaign` this **replaces** the list |
+| `stop_on_reply`, `stop_on_auto_reply`, `stop_for_company` | set | auto-stop rules |
+| `open_tracking`, `link_tracking`, `text_only`, `insert_unsubscribe_header` | set | |
+| `daily_limit`, `daily_max_leads`, `email_gap`, `random_wait_max` | set | pacing |
+| `allow_risky_contacts` | set | default off → risky contacts skipped (keep off; see [verification](verification.md)) |
+| `status` | **read** | `0` Draft, `1` Active, `2` Paused, `3` Completed, `4` Running Subsequences, negatives = suspended/unhealthy |
+
+## Gotchas
+
+- **`getCampaignSendingStatus`**: the response splits by state — while **sending**, the reason + `issue_tracking` live under **`diagnostics`**; for a **draft/paused** campaign `diagnostics` is `null` and the reason is under **`summary`**. So read the reason as **`diagnostics?.status ?? summary?.status`** (a *reason* string: `campaign_draft`, `out_of_schedule`, `waiting_for_leads`, `daily_limit_met`, `all_accounts_unhealthy`, `healthy`, …) — distinct from the numeric campaign `status`. Some fields are absent when out of schedule. Optional `with_ai_summary` query param.
+- **`shareCampaign`** returns `204` and shares for **7 days**; re-call to keep sharing.
+- **`patchCampaign`** takes the same body as create (name optional); sending `email_list` replaces senders.
+- Subsequences (follow-up sequences triggered by lead behavior) are a separate group — create/manage them via the subsequence operations, then move leads in with `moveLeadToSubsequence`.
+
+## Preflight before activate
+
+1. Leads attached and **verified** (`getVerificationStats` on the list; [verification](verification.md)).
+2. Senders in `email_list` are **connected + healthy** (`listAccount` / `testAccountVitals`; [accounts](accounts.md)).
+3. Then `activateCampaign`; poll `getCampaignSendingStatus` to confirm `healthy`.
+
+## See also
+Example: [`examples/02-create-campaign-draft`](../../js/examples) · [`examples/05-launch-campaign`](../../js/examples). Template: [`outreach-service`](../../js/templates/outreach-service) (full list → verify → campaign → launch → replies).
+
+
+
+==============================================================================
+# docs/api/leads.md
+==============================================================================
+
+# Leads (+ lists & labels)
+
+Add, list, move, and update the people you email. **Leads** live in **lead lists** and/or campaigns; **lead labels** categorize replies/interest. Reach for this group to build an audience and manage its state. Related: [enrichment](enrichment.md) (source + enrich leads), [verification](verification.md) (clean them), [campaigns](campaigns.md) (send to them).
+
+## Key operations (SDK calls)
+
+```ts
+import { createLeadList, bulkAddLeads, listLeads,
+         updateLeadInterestStatus, moveLeads, getVerificationStats } from "@instantly-ai/sdk"
+
+// Create a list, then add leads to it (verify on import)
+const list = await createLeadList(client, { body: { name: "Q3 founders" } })
+
+const added = await bulkAddLeads(client, {
+  body: {
+    list_id: list.id,                 // provide list_id XOR campaign_id — not both
+    leads: [{ email: "a@acme.com", first_name: "Ada" }],  // ≤ 1000 per call
+    verify_leads_on_import: true,     // spawns a background verify job
+    skip_if_in_workspace: true,       // dedupe
+  },
+})
+
+// Read leads back (POST, filters in the BODY)
+const page = await listLeads(client, { body: { list_id: list.id, limit: 100 } })
+```
+
+Single-lead ops: `createLead`, `getLead`, `patchLead`, `deleteLead`. Bulk: `bulkDeleteLeads`, `bulkAssignLeads`, `mergeLeads`. Lists: `getLeadList`, `patchLeadList`, `deleteLeadList`, `getVerificationStats`. Labels: `createLeadLabel`, `listLeadLabel`, … Interest/subsequence: `updateLeadInterestStatus`, `moveLeadToSubsequence`, `removeLeadFromSubsequence`.
+
+## Object shapes that matter
+
+| Field | Set / Read | Notes |
+|---|---|---|
+| `email`, `first_name`, `last_name`, `company_name` | set | on `createLead` / `bulkAddLeads` |
+| `custom_variables` | set | object of your own merge fields |
+| `list_id` / `campaign_id` | set | **mutually exclusive** on bulk add/delete — provide exactly one |
+| `verify_leads_on_import`, `blocklist_id`, `skip_if_in_workspace/campaign/list` | set | import hygiene |
+| `lt_interest_status` / `interest_value` | set | interest state; `null` resets to "Lead" |
+| `to_campaign_id` / `to_list_id`, `copy_leads`, `reset_interest_status` | set | on `moveLeads` |
+
+## Gotchas
+
+- **`listLeads` is a `POST`** (`/api/v2/leads/list`) — filters + `limit`/`starting_after` go in the **body**. Chronological ordering is guaranteed only for leads created on/after 2025-10-15.
+- **`bulkAddLeads` caps at 1000** leads/call and requires **`campaign_id` XOR `list_id`**.
+- **`moveLeads` is async** — it returns a background job; poll it (`waitForBackgroundJob`). When moving by `ids`, also pass the source `campaign`/`list_id`.
+- **`updateLeadInterestStatus` and `bulkAssignLeads` return `202`** (accepted, not done).
+- **`bulkDeleteLeads`** requires `campaign_id` XOR `list_id`; optional `status`/`ids`/`limit`. Destructive — guard it.
+
+## Snippet — add + verify, then check the list
+
+```ts
+await bulkAddLeads(client, { body: { list_id, leads, verify_leads_on_import: true } })
+// verification runs in the background; poll list stats before launching a campaign
+const stats = await getVerificationStats(client, { path: { id: list_id } })
+```
+
+## See also
+Example: [`examples/03-add-leads-verify`](../../js/examples). Templates: [`outreach-service`](../../js/templates/outreach-service), [`lead-pipeline`](../../js/templates/lead-pipeline). See [verification](verification.md) and [conventions → pagination](../conventions.md#pagination).
+
+
+
+==============================================================================
+# docs/api/enrichment.md
+==============================================================================
+
+# Enrichment (SuperSearch)
+
+Find and enrich leads. **SuperSearch** turns a filter query into leads (with work emails, profile data, signals) and can enrich an existing list or campaign. Reach for this group to *source* an audience from scratch or to fill in missing data. Related: [leads](leads.md) (where enriched leads land), [verification](verification.md) (verify before sending).
+
+## The flow
+
+**Estimate → enrich → poll.** Preview/count first (cheap, no credits), then enrich (spends credits, runs async).
+
+```ts
+import { countLeadsFromSupersearch, previewLeadsFromSupersearch,
+         enrichLeadsFromSupersearch, getEnrichmentForResource } from "@instantly-ai/sdk"
+
+// 1) Estimate availability BEFORE spending (the API returns `number_of_leads`)
+const { number_of_leads } = await countLeadsFromSupersearch(client, { body: { search_filters } })
+
+// 2) Import + enrich (auto-creates a list if you don't pass resource_id)
+const run = await enrichLeadsFromSupersearch(client, {
+  body: { search_filters, limit: 500, list_name: "Q3 founders", work_email_enrichment: true },
+})
+
+// 3) Enrichment runs in the background — poll for completion
+const progress = await getEnrichmentForResource(client, { path: { resource_id: run.resource_id } })
+```
+
+Also: `createSuperSearchEnrichment` (attach an enrichment to a list/campaign — runs automatically), `createAIEnrichment` (LLM column from a prompt), `runEnrichment` (re-run), `getAiEnrichmentForResource`, `getEnrichmentHistory`, `updateEnrichmentSettingsForResource`, `signalKeywordsFacet` (autocomplete for the Signals filter).
+
+## Object shapes that matter
+
+| Field | Set / Read | Notes |
+|---|---|---|
+| `search_filters` | set (required) | the SuperSearch query (roles, geo, tech, signals, …) |
+| `limit` | set (required) | how many leads to import |
+| `list_name` / `resource_id` | set | omit `resource_id` → a new list is created |
+| `work_email_enrichment`, `fully_enriched_profile`, `signal_enrichment`, `ai_enrichment` | set | enrichment types |
+| `custom_flow` | set | waterfall provider order |
+| `live_list`, `auto_update` | set | auto re-run on a schedule |
+
+## Gotchas
+
+- **`enrichLeadsFromSupersearch` auto-creates a list** when no `resource_id` is given — capture `resource_id` from the response.
+- **Enrichment is asynchronous.** It runs after the call returns; completion is signalled by the webhook `supersearch_enrichment_completed` **or** by polling `getEnrichmentForResource` / `getAiEnrichmentForResource` (`…/ai/{resource_id}/in-progress`).
+- **Always `count`/`preview` first** — enrichment spends credits; counting/previewing does not.
+- Scopes are `supersearch_enrichments:{read,create,all}` only (no update/delete).
+- `createSuperSearchEnrichment` `type` is **mutually exclusive** with `integration_actions`.
+
+## See also
+Example: [`examples/04-enrich-supersearch`](../../js/examples). Templates: [`lead-pipeline`](../../js/templates/lead-pipeline), [`outreach-service`](../../js/templates/outreach-service). Then [verification](verification.md) → [campaigns](campaigns.md).
+
+
+
+==============================================================================
+# docs/api/verification.md
+==============================================================================
+
+# Verification
+
+Check that an email address is deliverable **before** you send to it. Verifying protects your sender reputation and keeps bounce rates low — do it before adding leads to a campaign. Related: [leads](leads.md) (verify on import), [campaigns](campaigns.md) (`allow_risky_contacts`), [conventions → verify before you send](../conventions.md#verify-before-you-send).
+
+## Key operations (SDK calls)
+
+```ts
+import { createEmailVerification, checkVerificationStatus } from "@instantly-ai/sdk"
+
+const res = await createEmailVerification(client, { body: { email: "ada@acme.com" } })
+
+// If it took > 10s, res.verification_status === "pending" → poll by email
+if (res.verification_status === "pending") {
+  const final = await checkVerificationStatus(client, { path: { email: "ada@acme.com" } })
+}
+```
+
+For bulk, prefer verifying **on import** (`bulkAddLeads` with `verify_leads_on_import: true`) and reading list-level stats with `getVerificationStats` — see [leads](leads.md).
+
+## Object shapes that matter
+
+| Field | Set / Read | Notes |
+|---|---|---|
+| `email` | set (required) | address to verify |
+| `webhook_url` | set (optional) | receive the result if it exceeds 10 s |
+| `verification_status` | **read** | `pending` \| `verified` \| `invalid` |
+| `catch_all` | **read** | `true` \| `false` \| `"pending"` (tri-state) |
+| `credits`, `credits_used` | **read** | |
+| `status` | **read** | top-level `success` \| `error` \| `null` |
+
+## Gotchas
+
+- **Synchronous-then-async:** if verification takes **> 10 seconds**, `createEmailVerification` returns `verification_status: "pending"`. Then poll `checkVerificationStatus` (by email) or supply `webhook_url` up front.
+- `catch_all` is **tri-state** — `"pending"` is a valid value, not just booleans.
+- Scopes: `email_verifications:{read,create,all}` (no update/delete).
+- To gate a campaign launch, verify the whole list on import and check `getVerificationStats`, rather than verifying one address at a time.
+
+## See also
+Example: [`examples/03-add-leads-verify`](../../js/examples). Template: [`outreach-service`](../../js/templates/outreach-service) (verify-before-launch preflight), [`lead-pipeline`](../../js/templates/lead-pipeline).
+
+
+
+==============================================================================
+# docs/api/emails.md
+==============================================================================
+
+# Emails (Unibox & replies)
+
+Read and act on the emails in the Unibox — campaign sends, replies, and manual messages. Reach for this group to build a reply inbox, auto-respond, or forward. Related: [webhooks](webhooks.md) (get notified of replies), [leads](leads.md) (update interest from a reply).
+
+## Key operations (SDK calls)
+
+```ts
+import { listEmail, replyToEmail, forwardEmail } from "@instantly-ai/sdk"
+
+// List inbox emails (rate-limited to 20/min)
+const inbox = await listEmail(client, { query: { email_type: "received", limit: 50 } })
+
+// Reply in-thread — reply_to_uuid is the id of the email you're replying to
+await replyToEmail(client, {
+  body: {
+    reply_to_uuid: emailId,          // from listEmail, or a webhook payload's email_id
+    eaccount: "sender@acme.com",     // which connected account sends it
+    subject: "Re: quick question",
+    body: { html: "<p>Thanks — how's Tuesday?</p>" },
+  },
+})
+```
+
+Also: `getEmail`, `patchEmail`, `deleteEmail`, `sendTestEmail`, `markThreadAsRead`, `countUnreadEmails`.
+
+## Object shapes that matter
+
+| Field | Set / Read | Notes |
+|---|---|---|
+| `reply_to_uuid` | set (required for reply/forward) | the `id` of an existing email; = a webhook payload's `email_id` |
+| `eaccount` | set (required) | sending account |
+| `subject`, `body.{html,text}` | set | message content |
+| `to_address_email_list`, `include_original_body` | set | forward: either a `body` **or** `include_original_body: true` |
+| `email_type` | query | `received` \| `sent` \| `manual` |
+| `search` | query | supports `thread:<id>` prefix |
+| body / thread / dates | **read** | most email fields are read-only |
+
+## Gotchas
+
+- **`listEmail` is rate-limited to 20/min** (below the global budget). Rich filters: `campaign_id`, `list_id`, `eaccount` (comma-sep), `mode`, `is_unread`, `latest_of_thread`; `limit` max 100.
+- **`replyToEmail` requires `reply_to_uuid`** (plus `eaccount`, `subject`, `body`). The API docs contain a typo `reyply_to_uuid` — the real field is **`reply_to_uuid`**.
+- **`forwardEmail`** requires `reply_to_uuid`, `to_address_email_list`, `eaccount`, `subject`, and **either** a `body` **or** `include_original_body: true`.
+- **`sendTestEmail`** is 10/min per workspace, doesn't create a Unibox entity, and can return `200` with an **error in the body** (`{ error: "ACC_AUTH_ERROR" | "ACC_NOT_FOUND" | … }`) — check the body, not just the status.
+
+## Snippet — reply to a webhook-delivered reply
+
+```ts
+// webhook payload → email_id is the reply_to_uuid
+await replyToEmail(client, { body: { reply_to_uuid: payload.email_id, eaccount, subject, body: { html } } })
+```
+
+## See also
+Example: [`examples/06-reply-webhook`](../../js/examples). Template: [`reply-automation`](../../js/templates/reply-automation). See [webhooks](webhooks.md).
+
+
+
+==============================================================================
+# docs/api/analytics.md
+==============================================================================
+
+# Analytics
+
+Read sending and performance data for campaigns and accounts. Reach for this group to build dashboards, monitor health, or feed a reporting pipeline. This doc curates the analytics operations that live across the **campaign** and **account** groups. Related: [campaigns](campaigns.md), [accounts](accounts.md), [webhooks](webhooks.md) (event aggregates).
+
+## Key operations (SDK calls)
+
+```ts
+import { getCampaignAnalytics, getCampaignAnalyticsOverview,
+         getDailyCampaignAnalytics, getDailyAccountAnalytics,
+         getWarmupAnalytics, getWebhookEventsSummary } from "@instantly-ai/sdk"
+
+// One campaign (pass id) or ALL campaigns (omit id / use ids)
+const all = await getCampaignAnalytics(client, { query: { start_date, end_date } })
+const one = await getCampaignAnalytics(client, { query: { id: campaignId } }) // → an array (one element when scoped by id); empty [] until the campaign has sent
+
+// Daily time series
+const daily = await getDailyCampaignAnalytics(client, { query: { id: campaignId } })
+
+// Account-side (note: warmup analytics is a POST with a required body)
+const warmup = await getWarmupAnalytics(client, { body: { emails: ["s1@acme.com"] } })
+```
+
+Campaign: `getCampaignAnalytics`, `getCampaignAnalyticsOverview`, `getDailyCampaignAnalytics`, `getCampaignStepsAnalytics`, `countLaunched`. Account: `getDailyAccountAnalytics`, `getWarmupAnalytics`. Events: `getWebhookEventsSummary`, `getWebhookEventsSummaryByDate` (see [webhooks](webhooks.md)).
+
+## Object shapes that matter
+
+| Field | Set / Read | Notes |
+|---|---|---|
+| `id` / `ids` | query | one campaign vs many; **omit for all campaigns** |
+| `start_date`, `end_date` | query | window |
+| `campaign_status` | query | filter overview by status (`-99…4`) |
+| `exclude_total_leads_count`, `expand_crm_events` | query | trim / expand payload |
+| `emails` | **body** (required) | `getWarmupAnalytics` only |
+
+## Gotchas
+
+- **Omit `id`** on `getCampaignAnalytics` / `…Overview` to get **all** campaigns; pass `id` (or `ids`) to scope.
+- **`getWarmupAnalytics` is a `POST`** with a **required `emails` array** — unusual for an analytics read.
+- These are read endpoints (`200`); validation errors return `400`.
+- Respect rate limits when polling on a schedule — spread pulls; cache where you can (see [conventions → rate limits](../conventions.md#rate-limits--backoff)).
+
+## See also
+Template: [`analytics-service`](../../js/templates/analytics-service) (scheduled pull → normalize → endpoint feed). Campaign context: [campaigns](campaigns.md); account/warmup context: [accounts](accounts.md).
+
+
+
+==============================================================================
+# docs/api/accounts.md
+==============================================================================
+
+# Accounts (senders, warmup, OAuth)
+
+Manage the email accounts that *send* your campaigns: connect them, warm them up, check their health. Reach for this group to onboard senders and keep deliverability healthy. Related: [campaigns](campaigns.md) (`email_list` = these accounts), [analytics](analytics.md) (warmup/daily analytics).
+
+## Connecting a sender (OAuth)
+
+The cleanest way to add a Google/Microsoft sender is the **OAuth flow** — init, send the user to `auth_url`, then poll.
+
+```ts
+import { initGoogleOAuth, getOAuthSessionStatus } from "@instantly-ai/sdk"
+import { pollOauthSessionStatus } from "@instantly-ai/sdk"
+
+const { auth_url, session_id } = await initGoogleOAuth(client, { body: { /* redirect, etc. */ } })
+// → send the user to auth_url in a browser…
+const result = await pollOauthSessionStatus(client, session_id)   // polls getOAuthSessionStatus
+```
+
+## Managing accounts
+
+```ts
+import { listAccount, enableWarmupForAccounts, testAccountVitals } from "@instantly-ai/sdk"
+
+const accounts = await listAccount(client, { query: { limit: 100 } })
+
+// Warmup toggle is a BACKGROUND JOB — poll it
+const job = await enableWarmupForAccounts(client, { body: { emails: ["s1@acme.com"] } })
+await waitForBackgroundJob(client, job.id)
+```
+
+Also: `createAccount`, `getAccount` (`{email}`), `patchAccount`, `deleteAccount`, `pauseAccount`, `resumeAccount`, `markAccountFixed`, `disableWarmupForAccounts`, `getCtdStatus`, `moveAccounts`, plus analytics (`getWarmupAnalytics`, `getDailyAccountAnalytics` — see [analytics](analytics.md)).
+
+## Object shapes that matter
+
+| Field | Set / Read | Notes |
+|---|---|---|
+| `email` | set / path | accounts are keyed by **email in the path**, not a UUID |
+| `provider_code` | set | `1` Custom IMAP/SMTP, `2` Google, `3` Microsoft, `4` AWS, `8` AirMail — must match, or the account won't work |
+| imap/smtp credentials | set | required for Custom IMAP/SMTP; for Google/Microsoft use OAuth instead |
+| `warmup` (`limit`, `reply_rate`, `increment`, `advanced.*`) | set | warmup config |
+| `enable_slow_ramp`, `daily_limit`, `sending_gap` | set | pacing / ramp |
+| `status` | **read** | 1 Active, 2 Paused, 3 maintenance (auto-resume), −1 Connection, −2 Soft Bounce, −3 Sending |
+| `warmup_status` | **read** | 0 Paused, 1 Active, −1 Banned, −2 Spam-folder, −3 Suspension |
+
+## Gotchas
+
+- **OAuth sessions expire in 10 minutes**, are one-time-use (deleted after the first success/error read → `404` after), and poll at ~5 s. Google is **GSuite only** (personal `@gmail` rejected); Microsoft allows business + personal. `init` is rate-limited (75/min·workspace + 150/min·IP) and returns only `200`/`429`/`503`.
+- **Warmup enable/disable are background jobs** (`type: update-warmup-accounts`) — poll `/background-jobs/{id}`. The op is **`/disable`, not `/pause`**.
+- Accounts are addressed by **email in the path** (`getAccount({ path: { email } })`, `deleteAccount({ path: { email } })`).
+- **`moveAccounts` requires an ADMIN-workspace key**, and source + destination must share the same admin workspace (see [conventions → sub-workspace](../conventions.md#admin-acting-as-a-sub-workspace)). Destructive across workspaces — guard it.
+
+## See also
+Templates: [`outreach-service`](../../js/templates/outreach-service) (preflight sender health before launch). Warmup/daily analytics: [analytics](analytics.md).
+
+
+
+==============================================================================
+# docs/api/webhooks.md
+==============================================================================
+
+# Webhooks
+
+Get notified when things happen — replies, opens, bounces, lead-interest changes, enrichment completion. Reach for this group to build event-driven flows (reply automation, CRM sync). Related: [emails](emails.md) (act on a reply), [leads](leads.md) (update interest), [analytics](analytics.md) (event aggregates).
+
+## Key operations (SDK calls)
+
+```ts
+import { createWebhook, listWebhookEventTypes, testWebhook, resumeWebhook } from "@instantly-ai/sdk"
+
+// Subscribe to replies (only target_hook_url is required)
+const hook = await createWebhook(client, {
+  body: {
+    target_hook_url: "https://my.app/instantly/webhook",
+    event_type: "reply_received",          // or "all_events"
+    campaign: campaignId,                   // null / omit = all campaigns
+    headers: { "x-shared-secret": secret }, // your only delivery-auth (verify on receipt)
+  },
+})
+
+await testWebhook(client, { path: { id: hook.id } })   // send a test payload
+```
+
+Also: `listWebhook`, `getWebhook`, `patchWebhook`, `deleteWebhook`, `resumeWebhook`, `listWebhookEventTypes`. Query delivery history via the webhook-event ops (`listWebhookEvent`, `getWebhookEventsSummary`, `getWebhookEventsSummaryByDate`).
+
+## Object shapes that matter
+
+| Field | Set / Read | Notes |
+|---|---|---|
+| `target_hook_url` | set (required) | your receiver URL |
+| `event_type` | set | subscription filter (see enum below) or `"all_events"` |
+| `campaign` | set | UUID to scope to one campaign; `null` = all |
+| `custom_interest_value` | set | for custom-label events (leave `event_type` null) |
+| `headers` | set | key/value headers sent on delivery — your shared-secret hook |
+| payload `event_type`, `email_id`, `reply_*`, `campaign_id`, `timestamp` | **read** | `email_id` = the `reply_to_uuid` for [emails](emails.md) reply |
+
+Subscription `event_type` enum: `all_events, email_sent, email_opened, email_link_clicked, reply_received, email_bounced, lead_unsubscribed, campaign_completed, account_error, lead_interested, lead_not_interested, lead_meeting_booked, lead_meeting_completed, lead_closed, lead_out_of_office, lead_wrong_person, lead_no_show, supersearch_enrichment_completed`.
+
+## Gotchas
+
+- **No HMAC/signature.** The only delivery-auth is the `headers` object you set and verify yourself.
+- **Subscription vs payload naming differs.** You subscribe with e.g. `email_link_clicked`, but the delivered payload's `event_type` may be `link_clicked`; the guide also lists `auto_reply_received` (not in the create enum). **Match on the payload value you actually receive.** Custom workspace labels arrive as their raw label string. Enumerate everything with `listWebhookEventTypes`.
+- **Webhooks auto-disable** after repeated delivery failures → re-enable with `resumeWebhook`.
+- Handle **duplicate deliveries** idempotently (dedupe on `email_id` / event id) — there's no idempotency key ([conventions](../conventions.md#idempotency)).
+- The payload's **`email_id` is the `reply_to_uuid`** — feed it to `replyToEmail` to respond in-thread ([emails](emails.md)).
+
+## See also
+Example: [`examples/06-reply-webhook`](../../js/examples). Template: [`reply-automation`](../../js/templates/reply-automation) (receive → classify → route/respond).
+
+
+
+==============================================================================
+# docs/quickstart.md
+==============================================================================
+
+# Quickstart
+
+Key → first successful API call in about 90 seconds. This runs `examples/01`, a read-only auth check.
+
+## 1. Clone the kit &amp; add your key
+
+Nothing is on a registry yet — the kit is clone-based and runs offline.
+
+```bash
+git clone https://github.com/Instantly-ai/instantly-starter-kit
+cd instantly-starter-kit
+```
+
+Get a key in Instantly (**Settings → Integrations → API Keys → Create API Key** — copy it, it's shown once), then:
+
+```bash
+export INSTANTLY_API_KEY=sk_...   # never hardcode it
+```
+
+## 2. Run the smoke check
+
+### JavaScript
+
+```bash
+# Build the SDK once (examples/templates link to its built output)
+cd js/sdk && npm install && npm run build && cd ..
+
+cd js/examples
+npm install          # links the local SDK (file:../sdk)
+npm run 01           # → lists your campaigns; confirms the key works
+```
+
+### Python
+
+```bash
+cd python/sdk && pip install -e .          # install the local SDK
+cd ../examples
+python 01_auth_smoke_check.py              # → lists your campaigns
+```
+
+## 3. You should see
+
+```
+✓ Key works. First page of campaigns:
+{ ... }
+```
+
+If you get a `401`, the key is missing or invalid. Any other error prints its status + payload (`InstantlyApiError`).
+
+## Next
+
+- **Build something** — open [`AGENTS.md`](../AGENTS.md); it maps the API and walks an agent through building a wrapper.
+- **Learn the rules** — [`docs/conventions.md`](conventions.md) (auth, pagination, rate limits, async, create-inactive→activate, verify-before-send, webhooks, errors).
+- **Per-group guides** — [`docs/api/`](api/).
+- **Fork a template** — the hero [`outreach-service`](../js/templates/outreach-service) runs the full flow (list → verify → campaign → launch → replies); also [`reply-automation`](../js/templates/reply-automation), [`analytics-service`](../js/templates/analytics-service), [`lead-pipeline`](../js/templates/lead-pipeline).
+- **More examples** — [`js/examples`](../js/examples) / [`python/examples`](../python/examples): create a draft, add + verify leads, enrich, launch, handle replies.

@@ -1,0 +1,23 @@
+{
+  "name": "@instantly-ai/examples",
+  "private": true,
+  "type": "module",
+  "description": "Single-task examples for the Instantly SDK (JS).",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "01": "tsx 01-auth-smoke-check.ts",
+    "02": "tsx 02-create-campaign-draft.ts",
+    "03": "tsx 03-add-leads-verify.ts",
+    "04": "tsx 04-enrich-supersearch.ts",
+    "05": "tsx 05-launch-campaign.ts",
+    "06": "tsx 06-reply-webhook.ts"
+  },
+  "dependencies": {
+    "@instantly-ai/sdk": "file:../sdk"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.2"
+  }
+}
