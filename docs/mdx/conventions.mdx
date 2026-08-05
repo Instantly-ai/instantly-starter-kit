@@ -1,0 +1,128 @@
+---
+title: "Conventions"
+description: "The cross-cutting rules the whole API assumes — auth, pagination, rate limits, async jobs, create-inactive to activate, verify-before-send, errors."
+---
+
+The cross-cutting rules for building on the Instantly API with this SDK. Read this once; the per-group guides in [`docs/api/`](https://github.com/Instantly-ai/instantly-starter-kit/blob/main/api/) assume it. This is the context a developer would otherwise spend a day gathering.
+
+## Authentication
+
+The API uses a **bearer token**. Create a key in Instantly under **Settings → Integrations → API Keys** (choose a name + scopes). The key is shown **once** — store it securely; it can't be recovered.
+
+The SDK adds `Authorization: Bearer <key>` for you. Pass the key from the environment — **never hardcode it**.
+
+```ts
+// JS  ·  import { createInstantlyClient } from "@instantly-ai/sdk"
+const client = createInstantlyClient({ apiKey: process.env.INSTANTLY_API_KEY! })
+```
+```python
+# Python  ·  from instantly import create_instantly_client
+client = create_instantly_client(os.environ["INSTANTLY_API_KEY"])
+```
+
+- **Base URL:** `https://api.instantly.ai`; all v2 paths are under `/api/v2`. The SDK handles this.
+- **Two languages, one surface:** JS functions are `camelCase` (`listCampaign`), Python are `snake_case` (`list_campaign`). Both take `(client, request)` where `request` is `{ path?, query?, body?, headers? }`.
+
+## Scopes
+
+Keys carry scopes shaped `<resource>:<action>` where action ∈ `read | create | update | delete | all`, plus wildcards `all:<action>` and `all:all`. Each operation lists its accepted scopes (in the manifest and each API doc). Give a key the **least** it needs. A few resource names differ from the URL slug: `lead-labels:*`, `background-jobs:*`, `email_verifications:*` (read/create/all only), `supersearch_enrichments:*` (read/create/all only).
+
+## Pagination
+
+List endpoints use **cursor pagination**: pass `limit` (max 100) and `starting_after`; the response returns `next_starting_after` — feed it back as the next `starting_after`. `next_starting_after` may be a UUID, timestamp, or email depending on the endpoint.
+
+```ts
+let cursor: string | undefined
+do {
+  const page = await listCampaign(client, { query: { limit: 100, starting_after: cursor } })
+  if (!page.items?.length) break // last non-empty page can still return a cursor; stop on an empty page
+  // …handle page.items…
+  cursor = page.next_starting_after
+} while (cursor)
+```
+
+> A page can carry a `next_starting_after` even when it's the last one with data; the follow-up fetch then returns no items. Break on an empty page (as above) to avoid one extra empty request.
+
+> **`listLeads` is a `POST`** (`/api/v2/leads/list`) — a deliberate deviation for complex filters. Its `limit`/`starting_after` go in the **body**. (Ordering is chronological only for leads created on/after 2025-10-15.)
+
+## Rate limits & backoff
+
+- Global: **100 requests/second** *and* **6,000 requests/minute** — hitting either returns `429`. Limits are **workspace-wide**, shared across API v1 + v2 and across all keys.
+- The SDK auto-retries `429` and `5xx` with linear backoff (`maxRetries`, default 1). For bulk work, batch (e.g. 1000 leads/call, pause between batches) and spread scheduled jobs.
+- **Lower per-endpoint limits** (respect them explicitly):
+
+  | Endpoint | Limit |
+  |---|---|
+  | `listEmail` (`GET /emails`) | 20 / min |
+  | `sendTestEmail` (`POST /emails/test`) | 10 / min per workspace |
+  | `testAiReplyLabelLeadLabels` | 500 / 30 days per workspace (test endpoint only) |
+  | `initGoogleOAuth` / `initMicrosoftOAuth` | 75 / min per workspace + 150 / min per IP |
+  | `checkDomainsAvailability` | 30 / min or 900 / hour |
+
+  OAuth IP blocks escalate (30 min → 2 h → 24 h) and return `429` with a `Retry-After` header (seconds); upstream provider throttling returns `503`.
+
+## Idempotency
+
+There is **no idempotency-key mechanism**. Don't assume retries are safe on writes. Use the built-in safeguards instead: lead dedupe flags (`skip_if_in_workspace`, `skip_if_in_campaign`, `skip_if_in_list`) and blocklist checks. The SDK only auto-retries `429`/`5xx`.
+
+## Async operations — poll, don't assume
+
+Some endpoints do work in the background. Three patterns:
+
+1. **Background job** → the response is a job; poll `GET /api/v2/background-jobs/{id}` until `status ∈ {completed, success, failed, error}`. Use the SDK helper:
+   ```ts
+   const job = await waitForBackgroundJob(client, jobId)   // Python: polling.wait_for_background_job
+   ```
+   Job-returning ops include `enableWarmupForAccounts` / `disableWarmupForAccounts`, `moveLeads`, and `bulkAddLeads` when `verify_leads_on_import: true`.
+2. **HTTP `202 Accepted`** → accepted, not done: `updateLeadInterestStatus`, `bulkAssignLeads`.
+3. **Poll-by-status** → `createEmailVerification` returns `verification_status: "pending"` if it takes > 10 s (then poll `checkVerificationStatus`); OAuth returns `auth_url` + `session_id`, then poll `getOAuthSessionStatus` (helper: `pollOauthSessionStatus`). SuperSearch enrichments run after creation — poll `getEnrichmentForResource`.
+
+> The manifest's `async_behavior` field flags *every* operation as a background job — ignore it. The list above is the real one, sourced from the endpoint docs.
+
+## Campaigns: create-inactive → activate
+
+Creating a campaign **never sends**. `createCampaign` returns a **Draft** (`status: 0`). Sending is a separate, explicit step — `activateCampaign` — and should be gated by a preflight (verified leads present, senders connected + healthy). `pauseCampaign` stops it. Campaign `status`: `0` Draft · `1` Active · `2` Paused · `3` Completed · `4` Running Subsequences · negative = suspended/unhealthy/bounce-protect.
+
+## Verify before you send
+
+Protect deliverability by verifying recipients first:
+- Standalone: `createEmailVerification` → `checkVerificationStatus`.
+- On import: `bulkAddLeads` / `createLead` accept `verify_leads_on_import` (spawns a background verify job) and honor a `blocklist_id`.
+- Per list: `getVerificationStats`.
+- Campaign risk toggle: `allow_risky_contacts` (default off → risky contacts skipped).
+
+## Warmup & deliverability
+
+- Toggle warmup with `enableWarmupForAccounts` / `disableWarmupForAccounts` (background jobs — **not** "pause"). Configure via the account `warmup` object (`limit`, `reply_rate`, `increment`, advanced flags).
+- Account health is read-only: `status` (1 Active, 2 Paused, 3 maintenance-auto-resume, −1 Connection Error, −2 Soft Bounce, −3 Sending Error) and `warmup_status` (0 Paused, 1 Active, −1 Banned, −2 Spam-folder, −3 Suspension).
+- Deliverability levers: `enable_slow_ramp`, `daily_limit`, `sending_gap`; campaign-side `stop_on_reply`, `insert_unsubscribe_header`, `email_gap`, `random_wait_max`; diagnostics via `testAccountVitals`, inbox-placement tests, and the blocklist.
+
+## Webhooks (replies & events)
+
+Create a subscription with `createWebhook` — only `target_hook_url` is required; scope with `event_type` (or `"all_events"`) and optionally a single `campaign`. For replies subscribe to `reply_received`.
+
+- **No HMAC/signature** is provided. The only delivery-auth is the optional `headers` object you set on the webhook and verify on your receiver.
+- Webhooks **auto-disable** after repeated delivery failures → re-enable with `resumeWebhook`; validate with `testWebhook`.
+- The payload's `email_id` is the `reply_to_uuid` — pass it to `replyToEmail` to respond in-thread.
+- **Event-type naming differs between subscription and payload** — subscribe with e.g. `email_link_clicked` / `reply_received`, but match on the payload's actual `event_type` (e.g. `link_clicked`, `auto_reply_received`). Custom workspace labels arrive as their raw label string. List everything with `listWebhookEventTypes`.
+
+## Errors
+
+Non-2xx responses raise **`InstantlyApiError`** with `status`, `statusText`, and the parsed `payload`. The payload shape is uniform:
+
+```json
+{ "statusCode": 404, "error": "Not Found", "message": "Resource not found" }
+```
+
+Common: `401` (missing/invalid key), `402` (no active paid plan), `404`, `429` (rate limit), `400` (validation). Most writes succeed with `200`; exceptions: `shareCampaign` → `204`, `updateLeadInterestStatus` & `bulkAssignLeads` → `202`. A few endpoints (e.g. `sendTestEmail`) can return `200` with an error in the body — check the body.
+
+```ts
+import { InstantlyApiError } from "@instantly-ai/sdk"
+try { await getCampaign(client, { path: { id } }) }
+catch (e) { if (e instanceof InstantlyApiError) console.error(e.status, e.payload) }
+```
+
+## Admin: acting as a sub-workspace
+
+With an admin-workspace key you can act on a sub-workspace by adding the header `x-as-workspace: <sub_workspace_id>` (via `request.headers` / `defaultHeaders`). Required for cross-workspace admin flows like `moveAccounts`.
+

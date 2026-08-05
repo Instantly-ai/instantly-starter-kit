@@ -38,6 +38,8 @@ Companies build productized outreach services on top of Instantly — using it f
 
 Clone the kit, then scaffold a project — a template + the SDK + `AGENTS.md` + `docs/` + the full spec, ready to build:
 
+> **Prerequisites:** Node ≥ 18 (the SDK and scaffolder use the global `fetch`); Python ≥ 3.9 only if you want the Python SDK.
+
 ```bash
 git clone https://github.com/Instantly-ai/instantly-starter-kit
 cd instantly-starter-kit
@@ -72,8 +74,8 @@ The agent already knows the API — every scaffolded project ships [`AGENTS.md`]
 | [`AGENTS.md`](AGENTS.md) | The agent entry point: what the kit is, the 28-group API map, conventions, and a guided build flow. Coding agents read this first. |
 | [`spec/openapi.yaml`](spec/openapi.yaml) | Source of truth — OpenAPI 3.1, **168 operations / 28 resource groups**. Both SDKs generate from it. |
 | [`js/sdk`](js/sdk) · [`python/sdk`](python/sdk) | Typed clients (`@instantly-ai/sdk` · `instantly-sdk`). One function per operation, a typed error, async polling helpers. **Zero runtime deps.** |
-| [`docs/`](docs) | [`quickstart.md`](docs/quickstart.md), [`conventions.md`](docs/conventions.md), goal-first [`api/`](docs/api) guides (8 groups), and the generated [`index.html`](docs/index.html) docs site. |
-| [`js/examples`](js/examples) · [`python/examples`](python/examples) | Six single-task snippets each — auth, create-draft, add + verify leads, enrich, launch, reply webhook. |
+| [`docs/`](docs) | [`quickstart.md`](docs/quickstart.md), [`conventions.md`](docs/conventions.md), goal-first [`api/`](docs/api) guides (10 groups), and the generated [`index.html`](docs/index.html) docs site. |
+| [`js/examples`](js/examples) · [`python/examples`](python/examples) | Nine single-task snippets each — auth, create-draft, add + verify, enrich, launch, reply webhook, preflight, deliverability, multi-workspace. |
 | [`js/templates`](js/templates) · [`python/templates`](python/templates) | Four runnable service skeletons (below). |
 | [`create-instantly-app`](create-instantly-app) | The scaffolder that turns any of the above into a ready-to-build project. |
 | [`llms.txt`](llms.txt) · `llms-full.txt` | AI-ingestion: a curated index + the whole knowledge base concatenated. |
@@ -119,9 +121,16 @@ The cross-cutting rules the whole API assumes — full detail in [`docs/conventi
 
 Goal-first guides — what each group is, when to use it, key operations as SDK calls, the shapes that matter, and gotchas:
 
-[Campaigns](docs/api/campaigns.md) · [Leads](docs/api/leads.md) · [Enrichment](docs/api/enrichment.md) · [Verification](docs/api/verification.md) · [Emails](docs/api/emails.md) · [Analytics](docs/api/analytics.md) · [Accounts](docs/api/accounts.md) · [Webhooks](docs/api/webhooks.md)
+[Campaigns](docs/api/campaigns.md) · [Leads](docs/api/leads.md) · [Enrichment](docs/api/enrichment.md) · [Verification](docs/api/verification.md) · [Emails](docs/api/emails.md) · [Analytics](docs/api/analytics.md) · [Accounts](docs/api/accounts.md) · [Webhooks](docs/api/webhooks.md) · [Deliverability](docs/api/deliverability.md) · [Workspaces](docs/api/workspaces.md)
 
 For any group not covered above (workspace, api-keys, blocklist, custom tags, inbox-placement, DFY, …), the typed SDK + [`spec/openapi.yaml`](spec/openapi.yaml) have every operation.
+
+## Capabilities you're probably underusing
+
+Most of what a wrapper service needs is already part of what you run on Instantly — the API just lets you automate it. Two honest buckets:
+
+- **Included with your Outreach plan — automate it, no extra spend:** warmup & sending-health monitoring, inbox-placement / deliverability tests, and campaign + account analytics. If you check these in the UI (or not at all), the SDK turns them into a scheduled job. See [analytics](docs/api/analytics.md) and [deliverability](docs/api/deliverability.md).
+- **Runs on Instantly Credits — spend them deliberately:** email [verification](docs/api/verification.md) and SuperSearch [enrichment](docs/api/enrichment.md). Automating these (verify-on-import, count-before-enrich) means you spend credits in bulk on purpose, not one address at a time.
 
 ## Templates
 
@@ -133,13 +142,14 @@ Runnable service skeletons to fork (`create-instantly-app --template <name>`):
 | **reply-automation** | webhook receiver → classify reply → set interest / auto-respond | JS + Python |
 | **analytics-service** | scheduled analytics pull → normalize → JSON feed for a dashboard | JS + Python |
 | **lead-pipeline** | SuperSearch → enrich → verify → dedupe → sync to a DB/CRM | JS + Python |
+| **outbound-ops** | run the daily loop — morning brief (health + what to fix) + incident triage (diagnose → contain) | JS + Python |
 | **minimal** | just the SDK + `AGENTS.md` + docs — a blank canvas | JS + Python |
 
 ## Examples
 
-Six copy-paste snippets, one task each, in [`js/examples`](js/examples) and [`python/examples`](python/examples):
+Nine copy-paste snippets, one task each, in [`js/examples`](js/examples) and [`python/examples`](python/examples):
 
-`01` auth smoke check · `02` create a draft campaign · `03` add + verify leads · `04` enrich from SuperSearch · `05` launch (preflight) · `06` handle a reply webhook.
+`01` auth smoke check · `02` create a draft campaign · `03` add + verify leads · `04` enrich from SuperSearch · `05` launch (preflight) · `06` handle a reply webhook · `07` send-preflight readiness · `08` warmup + inbox placement · `09` agency multi-workspace.
 
 ## The scaffolder
 
@@ -147,7 +157,7 @@ Six copy-paste snippets, one task each, in [`js/examples`](js/examples) and [`py
 
 ```
 node create-instantly-app/index.js [dir] [options]
-  --template <outreach-service|reply-automation|analytics-service|lead-pipeline|minimal>
+  --template <outreach-service|reply-automation|analytics-service|lead-pipeline|outbound-ops|minimal>
   --js | --python        target language
   --no-install           skip installing dependencies
   -y, --yes              accept defaults, no prompts
@@ -168,7 +178,7 @@ cd scripts && npm install && npm run build   # writes docs/index.html + llms.txt
 
 ## How the SDKs are built
 
-Both SDKs are **generated from [`spec/openapi.yaml`](spec/openapi.yaml)** so JavaScript and Python stay in sync. The generated code (`js/sdk/src/**`, `python/sdk/instantly/**`) is committed, so you don't need to build anything to use the kit. Regeneration is maintainer tooling.
+Both SDKs are **generated from [`spec/openapi.yaml`](spec/openapi.yaml)** so JavaScript and Python stay in sync. The generated code (`js/sdk/src/**`, `python/sdk/instantly/**`) is committed. The **Python** SDK runs as-is (`pip install -e .`, no build). The **JS** SDK compiles to `dist/` with `npm install && npm run build` — the `create-instantly-app` scaffolder does this for you, and the raw `js/examples` path shows the one-time build step. Regeneration is maintainer tooling.
 
 ## Repository layout
 

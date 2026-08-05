@@ -2,6 +2,8 @@
 
 Check that an email address is deliverable **before** you send to it. Verifying protects your sender reputation and keeps bounce rates low — do it before adding leads to a campaign. Related: [leads](leads.md) (verify on import), [campaigns](campaigns.md) (`allow_risky_contacts`), [conventions → verify before you send](../conventions.md#verify-before-you-send).
 
+> **Runs on Instantly Credits.** Verifying on import bulk-checks a whole list in one pass, so you spend credits deliberately instead of one address at a time. See [costs](../conventions.md) for what consumes credits.
+
 ## Key operations (SDK calls)
 
 ```ts

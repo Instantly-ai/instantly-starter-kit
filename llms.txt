@@ -17,10 +17,12 @@
 - [Analytics](docs/api/analytics.md)
 - [Accounts](docs/api/accounts.md)
 - [Webhooks](docs/api/webhooks.md)
+- [Deliverability](docs/api/deliverability.md)
+- [Workspaces](docs/api/workspaces.md)
 
 ## Build
 - [Scaffolder](create-instantly-app/README.md): `node create-instantly-app/index.js my-app --template <name> --js|--python` — scaffolds a project with the SDK + docs + AGENTS.md vendored in.
-- [JS SDK](js/sdk/README.md) · [Python SDK](python/sdk/README.md) · [Examples](js/examples) · Templates: outreach-service, reply-automation, analytics-service, lead-pipeline.
+- [JS SDK](js/sdk/README.md) · [Python SDK](python/sdk/README.md) · [Examples](js/examples) · Templates: outreach-service, reply-automation, analytics-service, lead-pipeline, outbound-ops.
 
 ## Reference
 - [spec/openapi.yaml](spec/openapi.yaml): the authoritative full API surface (OpenAPI 3.1).

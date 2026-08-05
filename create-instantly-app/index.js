@@ -18,7 +18,7 @@ import { execSync } from "node:child_process"
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const KIT_ROOT = path.resolve(__dirname, "..") // the CLI lives at the kit repo root
 
-const TEMPLATES = ["outreach-service", "reply-automation", "analytics-service", "lead-pipeline", "minimal"]
+const TEMPLATES = ["outreach-service", "reply-automation", "analytics-service", "lead-pipeline", "outbound-ops", "minimal"]
 const LANGS = ["js", "python"]
 const TPL_EXCLUDES = new Set(["node_modules", "dist", ".venv", "venv", "__pycache__", ".git", ".DS_Store"])
 const SDK_EXCLUDES = new Set(["node_modules", ".venv", "venv", "__pycache__", ".git", ".DS_Store"]) // keep dist

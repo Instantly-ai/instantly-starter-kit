@@ -1,0 +1,60 @@
+---
+title: "Quickstart"
+description: "Clone, set your key, and see a real API response in ~90 seconds."
+---
+
+Key → first successful API call in about 90 seconds. This runs `examples/01`, a read-only auth check.
+
+## 1. Clone the kit &amp; add your key
+
+Nothing is on a registry yet — the kit is clone-based and runs offline.
+
+```bash
+git clone https://github.com/Instantly-ai/instantly-starter-kit
+cd instantly-starter-kit
+```
+
+Get a key in Instantly (**Settings → Integrations → API Keys → Create API Key** — copy it, it's shown once), then:
+
+```bash
+export INSTANTLY_API_KEY=sk_...   # never hardcode it
+```
+
+## 2. Run the smoke check
+
+### JavaScript
+
+```bash
+# Build the SDK once (examples/templates link to its built output)
+cd js/sdk && npm install && npm run build && cd ..
+
+cd js/examples
+npm install          # links the local SDK (file:../sdk)
+npm run 01           # → lists your campaigns; confirms the key works
+```
+
+### Python
+
+```bash
+cd python/sdk && pip install -e .          # install the local SDK
+cd ../examples
+python 01_auth_smoke_check.py              # → lists your campaigns
+```
+
+## 3. You should see
+
+```
+✓ Key works. First page of campaigns:
+{ ... }
+```
+
+If you get a `401`, the key is missing or invalid. Any other error prints its status + payload (`InstantlyApiError`).
+
+## Next
+
+- **Build something** — open [`AGENTS.md`](./AGENTS); it maps the API and walks an agent through building a wrapper.
+- **Learn the rules** — [`docs/conventions.md`](./conventions) (auth, pagination, rate limits, async, create-inactive→activate, verify-before-send, webhooks, errors).
+- **Per-group guides** — [`docs/api/`](https://github.com/Instantly-ai/instantly-starter-kit/blob/main/api/).
+- **Fork a template** — the hero [`outreach-service`](https://github.com/Instantly-ai/instantly-starter-kit/blob/main/js/templates/outreach-service) runs the full flow (list → verify → campaign → launch → replies); also [`reply-automation`](https://github.com/Instantly-ai/instantly-starter-kit/blob/main/js/templates/reply-automation), [`analytics-service`](https://github.com/Instantly-ai/instantly-starter-kit/blob/main/js/templates/analytics-service), [`lead-pipeline`](https://github.com/Instantly-ai/instantly-starter-kit/blob/main/js/templates/lead-pipeline).
+- **More examples** — [`js/examples`](https://github.com/Instantly-ai/instantly-starter-kit/blob/main/js/examples) / [`python/examples`](https://github.com/Instantly-ai/instantly-starter-kit/blob/main/python/examples): create a draft, add + verify leads, enrich, launch, handle replies.
+

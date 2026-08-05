@@ -32,13 +32,13 @@ The user uses Instantly for the email/deliverability/inbox/analytics backend and
 
 ## API-group map (28 groups)
 
-The 8 **bold** files are the goal-first guides in [`docs/api/`](docs/api); the rest are covered via conventions/reference.
+The 10 **bold** files are the goal-first guides in [`docs/api/`](docs/api); the rest are covered via conventions/reference.
 
 **Outreach Execution** — [**campaigns**](docs/api/campaigns.md) (`campaign`, `campaignsubsequence`) · [**leads**](docs/api/leads.md) (`lead`, `leadlist`, `leadlabel`) · [**emails**](docs/api/emails.md) (`email`) · `account` → [**accounts**](docs/api/accounts.md) · `accountcampaignmapping`.
-**Deliverability & Enrichment** — [**enrichment**](docs/api/enrichment.md) (`supersearchenrichment`) · [**verification**](docs/api/verification.md) (`emailverification`) · `inboxplacementtest` / `inboxplacementanalytics` / `inboxplacementblacklistandspamassassinreport` → [**analytics**](docs/api/analytics.md) · `blocklistentry`.
+**Deliverability & Enrichment** — [**enrichment**](docs/api/enrichment.md) (`supersearchenrichment`) · [**verification**](docs/api/verification.md) (`emailverification`) · [**deliverability**](docs/api/deliverability.md) (warmup, `inboxplacementtest` / `inboxplacementanalytics` / `inboxplacementblacklistandspamassassinreport`) · `blocklistentry`.
 **Integrations & Events** — [**webhooks**](docs/api/webhooks.md) (`webhook`, `webhookevent`) · `oauth` → [**accounts**](docs/api/accounts.md).
 **Analytics** — campaign + account analytics ops → [**analytics**](docs/api/analytics.md).
-**Workspace & Admin** — `workspace`, `workspacemember`, `workspacegroupmember`, `workspacebilling`, `apikey`, `crmactions`.
+**Workspace & Admin** — [**workspaces**](docs/api/workspaces.md) (`workspace`, `workspacemember`, `workspacegroupmember`, `workspacebilling`) · `apikey`, `crmactions`.
 **Operations & Diagnostics** — `backgroundjob` (poll async jobs), `auditlog`.
 **Support** — `customtag`, `customtagmapping`, `dfyemailaccountorder`.
 
@@ -53,7 +53,11 @@ Every group + operation (all 28 / 168) is in [`spec/openapi.yaml`](spec/openapi.
 | Verify before sending | [verification](docs/api/verification.md), [leads](docs/api/leads.md) | `03` | [outreach-service](js/templates/outreach-service) |
 | Handle replies / events | [webhooks](docs/api/webhooks.md), [emails](docs/api/emails.md) | `06` | [reply-automation](js/templates/reply-automation) |
 | Connect sending accounts | [accounts](docs/api/accounts.md) (OAuth) | — | [outreach-service](js/templates/outreach-service) |
+| Check a campaign is ready to send | [accounts](docs/api/accounts.md), [verification](docs/api/verification.md) | `07` | [outreach-service](js/templates/outreach-service) |
+| Warm up / check deliverability | [deliverability](docs/api/deliverability.md) | `08` | — |
+| Run many client workspaces (agency) | [workspaces](docs/api/workspaces.md) | `09` | — |
 | Report on performance | [analytics](docs/api/analytics.md) | — | [analytics-service](js/templates/analytics-service) |
+| Run the daily loop (brief + incident triage) | [deliverability](docs/api/deliverability.md), [accounts](docs/api/accounts.md) | — | [outbound-ops](js/templates/outbound-ops) |
 | Just check the key works | [campaigns](docs/api/campaigns.md) (`listCampaign`) | `01` | — |
 
 ## Conventions you must honor
@@ -357,6 +361,8 @@ Example: [`examples/03-add-leads-verify`](../../js/examples). Templates: [`outre
 
 Find and enrich leads. **SuperSearch** turns a filter query into leads (with work emails, profile data, signals) and can enrich an existing list or campaign. Reach for this group to *source* an audience from scratch or to fill in missing data. Related: [leads](leads.md) (where enriched leads land), [verification](verification.md) (verify before sending).
 
+> **Runs on Instantly Credits.** Count/preview first (free), then enrich — so credit spend is always a deliberate choice, never a surprise.
+
 ## The flow
 
 **Estimate → enrich → poll.** Preview/count first (cheap, no credits), then enrich (spends credits, runs async).
@@ -410,6 +416,8 @@ Example: [`examples/04-enrich-supersearch`](../../js/examples). Templates: [`lea
 # Verification
 
 Check that an email address is deliverable **before** you send to it. Verifying protects your sender reputation and keeps bounce rates low — do it before adding leads to a campaign. Related: [leads](leads.md) (verify on import), [campaigns](campaigns.md) (`allow_risky_contacts`), [conventions → verify before you send](../conventions.md#verify-before-you-send).
+
+> **Runs on Instantly Credits.** Verifying on import bulk-checks a whole list in one pass, so you spend credits deliberately instead of one address at a time. See [costs](../conventions.md) for what consumes credits.
 
 ## Key operations (SDK calls)
 
@@ -516,6 +524,8 @@ Example: [`examples/06-reply-webhook`](../../js/examples). Template: [`reply-aut
 # Analytics
 
 Read sending and performance data for campaigns and accounts. Reach for this group to build dashboards, monitor health, or feed a reporting pipeline. This doc curates the analytics operations that live across the **campaign** and **account** groups. Related: [campaigns](campaigns.md), [accounts](accounts.md), [webhooks](webhooks.md) (event aggregates).
+
+> **This is on your Outreach plan — you already pay for it.** If you check performance in the UI (or not at all), the SDK turns it into a scheduled pull → dashboard/feed. No extra spend.
 
 ## Key operations (SDK calls)
 
@@ -669,6 +679,121 @@ Subscription `event_type` enum: `all_events, email_sent, email_opened, email_lin
 
 ## See also
 Example: [`examples/06-reply-webhook`](../../js/examples). Template: [`reply-automation`](../../js/templates/reply-automation) (receive → classify → route/respond).
+
+
+
+==============================================================================
+# docs/api/deliverability.md
+==============================================================================
+
+# Deliverability (warmup & inbox placement)
+
+Keep your senders healthy and land in the inbox. This group covers **warmup** (ramp and maintain sender reputation) and **inbox-placement tests** (measure inbox vs spam across ESPs, plus blacklist / SpamAssassin reports). Reach for it to automate the deliverability monitoring that decides whether your campaigns are seen. Related: [accounts](accounts.md) (sender health fields), [analytics](analytics.md) (`getWarmupAnalytics`, daily analytics).
+
+> **This is on your Outreach plan — you already pay for it.** Warmup and placement monitoring usually live in the UI (or go unwatched). The SDK turns them into a scheduled job so weak senders surface before they cost you replies. No extra spend to read them.
+
+## Warmup
+
+```ts
+import { enableWarmupForAccounts, disableWarmupForAccounts, getWarmupAnalytics, polling } from "@instantly-ai/sdk"
+
+// Read how warmup is progressing (POST with a required `emails` array):
+const analytics = await getWarmupAnalytics(client, { body: { emails: ["s1@acme.com"] } })
+
+// Enable/disable warmup is a BACKGROUND JOB — poll it to completion:
+const job = await enableWarmupForAccounts(client, { body: { emails: ["s1@acme.com"] } })
+await polling.waitForBackgroundJob(client, job.id)
+```
+
+Also: `testAccountVitals` (health check), and the per-account `warmup` config + `warmup_status` on [accounts](accounts.md).
+
+## Inbox placement
+
+```ts
+import { listInboxPlacementTest, createInboxPlacementTest,
+         getInboxPlacementTest, getInboxPlacementBlacklistAndSpamAssassinReport } from "@instantly-ai/sdk"
+
+const tests = await listInboxPlacementTest(client, { query: { limit: 20 } })   // existing tests
+// createInboxPlacementTest → run a new test; getInboxPlacementTest({ path: { id } }) → results;
+// getInboxPlacementBlacklistAndSpamAssassinReport → blacklist + spam-filter findings for a test.
+```
+
+Insights: `getInboxPlacementAnalyticsDeliverabilityInsights`, `getInboxPlacementAnalyticsStatsByDate`, `getInboxPlacementTestESPOptions` (which ESPs to test against).
+
+## Object shapes that matter
+
+| Field | Set / Read | Notes |
+|---|---|---|
+| `emails` | **body** (set) | `getWarmupAnalytics` / `enableWarmupForAccounts` target senders by email |
+| `warmup` (`limit`, `reply_rate`, `increment`) | set | per-account warmup config (see [accounts](accounts.md)) |
+| `warmup_status` | **read** | 0 Paused, 1 Active, −1 Banned, −2 Spam-folder, −3 Suspension |
+| `status` | **read** | account health (1 Active, 2 Paused, −1 Connection, −2 Soft bounce, −3 Sending) |
+
+## Gotchas
+
+- **Warmup enable/disable are background jobs** (`type: update-warmup-accounts`) — poll `/background-jobs/{id}` with `waitForBackgroundJob`; don't treat the call as instant. The op is **`/disable`, not `/pause`**.
+- **`getWarmupAnalytics` is a `POST`** with a **required `emails` array** — unusual for a read.
+- **Warmup takes time.** Reputation ramps over ~2–4 weeks; read analytics on a schedule rather than expecting an immediate change.
+- **Inbox-placement tests send probe emails** and may consume test quota — treat `createInboxPlacementTest` as a metered write, not a free read. Read existing results with `listInboxPlacementTest` / `getInboxPlacementTest` first.
+- A `warmup_status` of −1/−2/−3 means a sender is in trouble — pause it and, if needed, replace it (Done-For-You warmed mailboxes/domains exist for this).
+
+## See also
+Example: [`examples/08-warmup-and-placement`](../../js/examples) (read warmup + placement; enable warmup behind `CONFIRM_WARMUP=1`). Sender setup: [accounts](accounts.md). Warmup analytics also appears in [analytics](analytics.md).
+
+
+
+==============================================================================
+# docs/api/workspaces.md
+==============================================================================
+
+# Workspaces & admin (agencies / multi-client)
+
+Manage the workspace your key belongs to — and, with an **admin-workspace key**, act across the **sub-workspaces** you run for clients. Reach for this group when you're an agency standing up one service that operates N client accounts, or when you need plan/credit visibility. Related: [accounts](accounts.md) (`moveAccounts`), [conventions → acting as a sub-workspace](../conventions.md#admin-acting-as-a-sub-workspace).
+
+## The agency pattern: one admin key, many sub-workspaces
+
+You don't re-authenticate per client. Keep one admin key and switch context with the `x-as-workspace` header via `defaultHeaders` — one SDK client per sub-workspace:
+
+```ts
+import { createInstantlyClient, listAccount, getCampaignAnalytics } from "@instantly-ai/sdk"
+
+// same admin key, different context per client:
+function clientFor(subWorkspaceId: string) {
+  return createInstantlyClient({ apiKey, defaultHeaders: { "x-as-workspace": subWorkspaceId } })
+}
+
+for (const wsId of clientWorkspaceIds) {
+  const client = clientFor(wsId)
+  const accounts  = await listAccount(client, { query: { limit: 100 } })   // this client's senders
+  const analytics = await getCampaignAnalytics(client, { query: {} })       // this client's campaigns
+}
+```
+
+That's the whole reuse story: build your service once, run it per client by swapping the header. The runnable version is [`examples/09-multi-workspace`](../../js/examples) (JS) / `09_multi_workspace.py` (Python) — read-only.
+
+## Key operations (SDK calls)
+
+- **This workspace:** `getWorkspace`, `patchWorkspace`, `getWorkspaceDomainInfo`.
+- **Plan & credit visibility:** `getWorkspacePlanDetails` (returns `credits.available_credits`, `plan_name`, period) and `getWorkspaceSubscriptionDetails` — the read behind a "check credits before you spend" preflight (see [costs](../conventions.md)).
+- **Members:** `workspacemember`, `workspacegroupmember` groups.
+- **Cross-workspace moves (admin):** `moveAccounts` — move sending accounts between workspaces that share the same admin workspace.
+
+## Object shapes that matter
+
+| Field | Set / Read | Notes |
+|---|---|---|
+| `x-as-workspace` | **header** (set) | the sub-workspace id to act as; admin key required |
+| `credits.available_credits` | **read** | `getWorkspacePlanDetails` — current credit balance |
+| `plan_name` | **read** | e.g. `Free Trial`, `Growth` |
+
+## Gotchas
+
+- **`moveAccounts` is destructive and admin-only.** Source + destination must share the same admin workspace, and it needs the `x-as-workspace` context. Guard it — never run it unprompted against a live/shared workspace (`AGENTS.md`, [accounts → moveAccounts](accounts.md)). A safe wrapper confirms the target workspace and the exact account emails before calling.
+- **Isolate per-client failures.** If one client's workspace lapses (402) or a key scope is missing, catch `InstantlyApiError` per iteration so one bad client doesn't abort the whole run.
+- **Scopes** — admin/cross-workspace flows need the matching `workspace*` scopes on the admin key (see [conventions → scopes](../conventions.md)).
+
+## See also
+Example: [`examples/09-multi-workspace`](../../js/examples). Cross-workspace account moves: [accounts](accounts.md). Credit balance for a spend preflight: [enrichment](enrichment.md), [verification](verification.md).
 
 
 

@@ -23,13 +23,13 @@ The user uses Instantly for the email/deliverability/inbox/analytics backend and
 
 ## API-group map (28 groups)
 
-The 8 **bold** files are the goal-first guides in [`docs/api/`](docs/api); the rest are covered via conventions/reference.
+The 10 **bold** files are the goal-first guides in [`docs/api/`](docs/api); the rest are covered via conventions/reference.
 
 **Outreach Execution** — [**campaigns**](docs/api/campaigns.md) (`campaign`, `campaignsubsequence`) · [**leads**](docs/api/leads.md) (`lead`, `leadlist`, `leadlabel`) · [**emails**](docs/api/emails.md) (`email`) · `account` → [**accounts**](docs/api/accounts.md) · `accountcampaignmapping`.
-**Deliverability & Enrichment** — [**enrichment**](docs/api/enrichment.md) (`supersearchenrichment`) · [**verification**](docs/api/verification.md) (`emailverification`) · `inboxplacementtest` / `inboxplacementanalytics` / `inboxplacementblacklistandspamassassinreport` → [**analytics**](docs/api/analytics.md) · `blocklistentry`.
+**Deliverability & Enrichment** — [**enrichment**](docs/api/enrichment.md) (`supersearchenrichment`) · [**verification**](docs/api/verification.md) (`emailverification`) · [**deliverability**](docs/api/deliverability.md) (warmup, `inboxplacementtest` / `inboxplacementanalytics` / `inboxplacementblacklistandspamassassinreport`) · `blocklistentry`.
 **Integrations & Events** — [**webhooks**](docs/api/webhooks.md) (`webhook`, `webhookevent`) · `oauth` → [**accounts**](docs/api/accounts.md).
 **Analytics** — campaign + account analytics ops → [**analytics**](docs/api/analytics.md).
-**Workspace & Admin** — `workspace`, `workspacemember`, `workspacegroupmember`, `workspacebilling`, `apikey`, `crmactions`.
+**Workspace & Admin** — [**workspaces**](docs/api/workspaces.md) (`workspace`, `workspacemember`, `workspacegroupmember`, `workspacebilling`) · `apikey`, `crmactions`.
 **Operations & Diagnostics** — `backgroundjob` (poll async jobs), `auditlog`.
 **Support** — `customtag`, `customtagmapping`, `dfyemailaccountorder`.
 
@@ -44,7 +44,11 @@ Every group + operation (all 28 / 168) is in [`spec/openapi.yaml`](spec/openapi.
 | Verify before sending | [verification](docs/api/verification.md), [leads](docs/api/leads.md) | `03` | [outreach-service](js/templates/outreach-service) |
 | Handle replies / events | [webhooks](docs/api/webhooks.md), [emails](docs/api/emails.md) | `06` | [reply-automation](js/templates/reply-automation) |
 | Connect sending accounts | [accounts](docs/api/accounts.md) (OAuth) | — | [outreach-service](js/templates/outreach-service) |
+| Check a campaign is ready to send | [accounts](docs/api/accounts.md), [verification](docs/api/verification.md) | `07` | [outreach-service](js/templates/outreach-service) |
+| Warm up / check deliverability | [deliverability](docs/api/deliverability.md) | `08` | — |
+| Run many client workspaces (agency) | [workspaces](docs/api/workspaces.md) | `09` | — |
 | Report on performance | [analytics](docs/api/analytics.md) | — | [analytics-service](js/templates/analytics-service) |
+| Run the daily loop (brief + incident triage) | [deliverability](docs/api/deliverability.md), [accounts](docs/api/accounts.md) | — | [outbound-ops](js/templates/outbound-ops) |
 | Just check the key works | [campaigns](docs/api/campaigns.md) (`listCampaign`) | `01` | — |
 
 ## Conventions you must honor

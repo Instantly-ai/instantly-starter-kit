@@ -109,11 +109,33 @@ export async function createCampaignDraft(client: InstantlyClient, params: Build
   return idOf(campaign)
 }
 
-/** Preflight: sending-status reason + connected accounts. Gate activation on this. */
-export async function preflight(client: InstantlyClient, campaignId: string) {
+/** Extract a list from a paginated response without assuming the exact envelope. */
+function itemsOf(res: unknown): unknown[] | null {
+  if (Array.isArray(res)) return res
+  const r = res as Record<string, unknown> | null
+  for (const k of ["items", "data", "accounts", "results"]) {
+    if (r && Array.isArray(r[k])) return r[k] as unknown[]
+  }
+  return null
+}
+
+/**
+ * Preflight: readiness check before activating. Never sends. Returns a summary
+ * you can gate `launch()` on — connected-sender count, sending status, and
+ * (when `listId` is given) verification stats. `hasSenders` is `false` only when
+ * we definitively parsed zero senders, `"unknown"` if the payload shape was
+ * unexpected — don't hard-block on `"unknown"`.
+ */
+export async function preflight(client: InstantlyClient, campaignId: string, listId?: string) {
   const status = await getCampaignSendingStatus(client, { path: { id: campaignId } })
   const accounts = await listAccount(client, { query: { limit: 100 } })
-  return { status, accounts }
+  const senders = itemsOf(accounts)
+  const senderCount = senders ? senders.length : null
+  const hasSenders: boolean | "unknown" = senderCount === null ? "unknown" : senderCount > 0
+  // Verification is opt-in in this kit, so it does NOT gate readiness — surfaced for the caller to judge.
+  const verification = listId ? await getVerificationStats(client, { path: { id: listId } }) : undefined
+  const ready = hasSenders === true
+  return { ready, checks: { hasSenders, senderCount }, status, accounts, verification }
 }
 
 /** Launch: activate the campaign (starts sending). Call only after preflight passes. */

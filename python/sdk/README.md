@@ -63,10 +63,4 @@ The `generated/` package types top-level scalars, enums, arrays, and unions prec
 
 ## Development
 
-The `instantly/` tree is **generated** — do not edit it by hand. Regenerate from the spec:
-
-```bash
-python3 docs/context/scripts/internal/build_wrapper_builder_system.py
-```
-
-Package scaffolding (`pyproject.toml`, this README) is hand-owned and is not overwritten by the generator.
+The `instantly/` tree is **generated** from `spec/openapi.yaml` — don't edit it by hand; regeneration is maintainer tooling. Package scaffolding (`pyproject.toml`, this README) is hand-owned and is not overwritten by the generator.

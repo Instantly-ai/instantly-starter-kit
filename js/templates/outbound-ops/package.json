@@ -1,0 +1,21 @@
+{
+  "name": "outbound-ops",
+  "private": true,
+  "type": "module",
+  "description": "Daily outbound operations on the Instantly SDK — morning brief + incident response.",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "start": "tsx commands/brief.ts",
+    "brief": "tsx commands/brief.ts",
+    "incident": "tsx commands/incident.ts",
+    "serve": "tsx server.ts"
+  },
+  "dependencies": {
+    "@instantly-ai/sdk": "file:../../sdk"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.2"
+  }
+}

@@ -1,0 +1,52 @@
+---
+title: "Workspaces & admin (agencies / multi-client)"
+description: "Multi-workspace / agency operations and plan/credit visibility."
+---
+
+Manage the workspace your key belongs to — and, with an **admin-workspace key**, act across the **sub-workspaces** you run for clients. Reach for this group when you're an agency standing up one service that operates N client accounts, or when you need plan/credit visibility. Related: [accounts](./accounts) (`moveAccounts`), [conventions → acting as a sub-workspace](./conventions#admin-acting-as-a-sub-workspace).
+
+## The agency pattern: one admin key, many sub-workspaces
+
+You don't re-authenticate per client. Keep one admin key and switch context with the `x-as-workspace` header via `defaultHeaders` — one SDK client per sub-workspace:
+
+```ts
+import { createInstantlyClient, listAccount, getCampaignAnalytics } from "@instantly-ai/sdk"
+
+// same admin key, different context per client:
+function clientFor(subWorkspaceId: string) {
+  return createInstantlyClient({ apiKey, defaultHeaders: { "x-as-workspace": subWorkspaceId } })
+}
+
+for (const wsId of clientWorkspaceIds) {
+  const client = clientFor(wsId)
+  const accounts  = await listAccount(client, { query: { limit: 100 } })   // this client's senders
+  const analytics = await getCampaignAnalytics(client, { query: {} })       // this client's campaigns
+}
+```
+
+That's the whole reuse story: build your service once, run it per client by swapping the header. The runnable version is [`examples/09-multi-workspace`](https://github.com/Instantly-ai/instantly-starter-kit/blob/main/js/examples) (JS) / `09_multi_workspace.py` (Python) — read-only.
+
+## Key operations (SDK calls)
+
+- **This workspace:** `getWorkspace`, `patchWorkspace`, `getWorkspaceDomainInfo`.
+- **Plan & credit visibility:** `getWorkspacePlanDetails` (returns `credits.available_credits`, `plan_name`, period) and `getWorkspaceSubscriptionDetails` — the read behind a "check credits before you spend" preflight (see [costs](./conventions)).
+- **Members:** `workspacemember`, `workspacegroupmember` groups.
+- **Cross-workspace moves (admin):** `moveAccounts` — move sending accounts between workspaces that share the same admin workspace.
+
+## Object shapes that matter
+
+| Field | Set / Read | Notes |
+|---|---|---|
+| `x-as-workspace` | **header** (set) | the sub-workspace id to act as; admin key required |
+| `credits.available_credits` | **read** | `getWorkspacePlanDetails` — current credit balance |
+| `plan_name` | **read** | e.g. `Free Trial`, `Growth` |
+
+## Gotchas
+
+- **`moveAccounts` is destructive and admin-only.** Source + destination must share the same admin workspace, and it needs the `x-as-workspace` context. Guard it — never run it unprompted against a live/shared workspace (`AGENTS.md`, [accounts → moveAccounts](./accounts)). A safe wrapper confirms the target workspace and the exact account emails before calling.
+- **Isolate per-client failures.** If one client's workspace lapses (402) or a key scope is missing, catch `InstantlyApiError` per iteration so one bad client doesn't abort the whole run.
+- **Scopes** — admin/cross-workspace flows need the matching `workspace*` scopes on the admin key (see [conventions → scopes](./conventions)).
+
+## See also
+Example: [`examples/09-multi-workspace`](https://github.com/Instantly-ai/instantly-starter-kit/blob/main/js/examples). Cross-workspace account moves: [accounts](./accounts). Credit balance for a spend preflight: [enrichment](./enrichment), [verification](./verification).
+
