@@ -2,6 +2,8 @@
 
 Find and enrich leads. **SuperSearch** turns a filter query into leads (with work emails, profile data, signals) and can enrich an existing list or campaign. Reach for this group to *source* an audience from scratch or to fill in missing data. Related: [leads](leads.md) (where enriched leads land), [verification](verification.md) (verify before sending).
 
+> **Runs on Instantly Credits.** Count/preview first (free), then enrich — so credit spend is always a deliberate choice, never a surprise.
+
 ## The flow
 
 **Estimate → enrich → poll.** Preview/count first (cheap, no credits), then enrich (spends credits, runs async).

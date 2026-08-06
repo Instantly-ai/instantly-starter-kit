@@ -2,6 +2,8 @@
 
 Read sending and performance data for campaigns and accounts. Reach for this group to build dashboards, monitor health, or feed a reporting pipeline. This doc curates the analytics operations that live across the **campaign** and **account** groups. Related: [campaigns](campaigns.md), [accounts](accounts.md), [webhooks](webhooks.md) (event aggregates).
 
+> **This is on your Outreach plan — you already pay for it.** If you check performance in the UI (or not at all), the SDK turns it into a scheduled pull → dashboard/feed. No extra spend.
+
 ## Key operations (SDK calls)
 
 ```ts

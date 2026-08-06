@@ -1,0 +1,57 @@
+---
+title: "Deliverability (warmup & inbox placement)"
+description: "Warmup and inbox-placement — the deliverability you already pay for."
+---
+
+Keep your senders healthy and land in the inbox. This group covers **warmup** (ramp and maintain sender reputation) and **inbox-placement tests** (measure inbox vs spam across ESPs, plus blacklist / SpamAssassin reports). Reach for it to automate the deliverability monitoring that decides whether your campaigns are seen. Related: [accounts](./accounts) (sender health fields), [analytics](./analytics) (`getWarmupAnalytics`, daily analytics).
+
+> **This is on your Outreach plan — you already pay for it.** Warmup and placement monitoring usually live in the UI (or go unwatched). The SDK turns them into a scheduled job so weak senders surface before they cost you replies. No extra spend to read them.
+
+## Warmup
+
+```ts
+import { enableWarmupForAccounts, disableWarmupForAccounts, getWarmupAnalytics, polling } from "@instantly-ai/sdk"
+
+// Read how warmup is progressing (POST with a required `emails` array):
+const analytics = await getWarmupAnalytics(client, { body: { emails: ["s1@acme.com"] } })
+
+// Enable/disable warmup is a BACKGROUND JOB — poll it to completion:
+const job = await enableWarmupForAccounts(client, { body: { emails: ["s1@acme.com"] } })
+await polling.waitForBackgroundJob(client, job.id)
+```
+
+Also: `testAccountVitals` (health check), and the per-account `warmup` config + `warmup_status` on [accounts](./accounts).
+
+## Inbox placement
+
+```ts
+import { listInboxPlacementTest, createInboxPlacementTest,
+         getInboxPlacementTest, getInboxPlacementBlacklistAndSpamAssassinReport } from "@instantly-ai/sdk"
+
+const tests = await listInboxPlacementTest(client, { query: { limit: 20 } })   // existing tests
+// createInboxPlacementTest → run a new test; getInboxPlacementTest({ path: { id } }) → results;
+// getInboxPlacementBlacklistAndSpamAssassinReport → blacklist + spam-filter findings for a test.
+```
+
+Insights: `getInboxPlacementAnalyticsDeliverabilityInsights`, `getInboxPlacementAnalyticsStatsByDate`, `getInboxPlacementTestESPOptions` (which ESPs to test against).
+
+## Object shapes that matter
+
+| Field | Set / Read | Notes |
+|---|---|---|
+| `emails` | **body** (set) | `getWarmupAnalytics` / `enableWarmupForAccounts` target senders by email |
+| `warmup` (`limit`, `reply_rate`, `increment`) | set | per-account warmup config (see [accounts](./accounts)) |
+| `warmup_status` | **read** | 0 Paused, 1 Active, −1 Banned, −2 Spam-folder, −3 Suspension |
+| `status` | **read** | account health (1 Active, 2 Paused, −1 Connection, −2 Soft bounce, −3 Sending) |
+
+## Gotchas
+
+- **Warmup enable/disable are background jobs** (`type: update-warmup-accounts`) — poll `/background-jobs/{id}` with `waitForBackgroundJob`; don't treat the call as instant. The op is **`/disable`, not `/pause`**.
+- **`getWarmupAnalytics` is a `POST`** with a **required `emails` array** — unusual for a read.
+- **Warmup takes time.** Reputation ramps over ~2–4 weeks; read analytics on a schedule rather than expecting an immediate change.
+- **Inbox-placement tests send probe emails** and may consume test quota — treat `createInboxPlacementTest` as a metered write, not a free read. Read existing results with `listInboxPlacementTest` / `getInboxPlacementTest` first.
+- A `warmup_status` of −1/−2/−3 means a sender is in trouble — pause it and, if needed, replace it (Done-For-You warmed mailboxes/domains exist for this).
+
+## See also
+Example: [`examples/08-warmup-and-placement`](https://github.com/Instantly-ai/instantly-starter-kit/blob/main/js/examples) (read warmup + placement; enable warmup behind `CONFIRM_WARMUP=1`). Sender setup: [accounts](./accounts). Warmup analytics also appears in [analytics](./analytics).
+

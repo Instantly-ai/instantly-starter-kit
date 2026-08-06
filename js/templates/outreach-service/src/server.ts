@@ -81,8 +81,13 @@ export function createServer(config: Config): http.Server {
           stats = await addAndVerifyLeads(client, listId, body.leads, body.verify === true)
         }
         const campaignId = await createCampaignDraft(client, body)
-        store.updateRun(id, { campaignId, leads: body.leads?.length ?? 0, verificationStats: stats, status: "ready" })
-        return send(res, 201, { runId: id, listId, campaignId, status: "ready" })
+        const leadCount = body.leads?.length ?? 0
+        store.updateRun(id, { campaignId, leads: leadCount, verificationStats: stats, status: "ready" })
+        const emptyAudience = leadCount === 0 && !body.searchFilters
+        return send(res, 201, {
+          runId: id, listId, campaignId, status: "ready", leads: leadCount,
+          ...(emptyAudience ? { warning: "No leads added — this draft has an empty audience. Add leads before launch." } : {}),
+        })
       }
 
       // --- Launch a run: preflight, then activate when { confirm: true } (needs key) ---
@@ -91,8 +96,15 @@ export function createServer(config: Config): http.Server {
         const run = store.getRun(runId)
         if (!run?.campaignId) return send(res, 404, { error: "run or campaign not found" })
         const client = getClient(config.apiKey)
-        const pre = await preflight(client, run.campaignId)
+        const pre = await preflight(client, run.campaignId, run.listId)
         const { confirm } = await readJson(req)
+        if (pre.checks.hasSenders === false) {
+          return send(res, 200, {
+            preflight: pre,
+            ready: false,
+            note: "Not ready: 0 connected senders. Connect a sender (docs/api/accounts.md) and warm it (docs/api/deliverability.md) before launching.",
+          })
+        }
         if (!confirm) return send(res, 200, { preflight: pre, note: "POST { confirm: true } to activate (sends email)" })
         await launch(client, run.campaignId)
         store.updateRun(runId, { status: "active" })

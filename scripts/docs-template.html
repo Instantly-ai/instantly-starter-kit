@@ -1,3 +1,6 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Instantly Starter Kit — Docs</title>
 <style>
   :root{
@@ -304,7 +307,7 @@ cd js/examples &amp;&amp; npm install &amp;&amp; npm run 01   <span class="tok-c
         <p>From your clone, spin up a ready project — a template + the SDK + <code>AGENTS.md</code> + <code>docs/</code> + <code>llms.txt</code>, wired to run offline:</p>
         <div class="code"><div class="ch"><span class="lang">bash</span><button class="copy">Copy</button></div><pre>node create-instantly-app/index.js my-analytics <span class="tok-k">--template</span> analytics-service <span class="tok-k">--js</span>
 node create-instantly-app/index.js my-outreach  <span class="tok-k">--template</span> outreach-service  <span class="tok-k">--python</span> -y</pre></div>
-        <p class="muted">Templates: <code>outreach-service</code> · <code>reply-automation</code> · <code>analytics-service</code> · <code>lead-pipeline</code> · <code>minimal</code>. Pick a language with <code>--js</code> / <code>--python</code>; skip prompts with <code>-y</code>.</p>
+        <p class="muted">Templates: <code>outreach-service</code> · <code>reply-automation</code> · <code>analytics-service</code> · <code>lead-pipeline</code> · <code>outbound-ops</code> · <code>minimal</code>. Pick a language with <code>--js</code> / <code>--python</code>; skip prompts with <code>-y</code>.</p>
       </section>
 
       <hr>
@@ -367,12 +370,41 @@ node create-instantly-app/index.js my-outreach  <span class="tok-k">--template</
       <section id="templates">
         <div class="eyebrow">More</div>
         <h2>Templates</h2>
-        <p>Runnable services to fork — both languages.</p>
+        <p>Runnable services to fork — both languages. Pick one and copy the command:</p>
+        <style>
+          .tpick-row{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
+          .tpk{padding:6px 12px;border-radius:999px;border:1px solid var(--line,#d0d0d6);background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:14px}
+          .tpk.on{border-color:var(--brand,#006bff);background:var(--brand,#006bff);color:#fff}
+          .tpick .code{margin-top:2px}
+          .tpk-copy{padding:4px 12px;border-radius:6px;border:1px solid var(--line,#30363d);background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:13px}
+        </style>
+        <div class="tpick" id="tpick">
+          <div class="tpick-row" id="tpick-tpls"></div>
+          <div class="tpick-row" id="tpick-langs"></div>
+          <div class="code"><div class="ch"><span class="lang">scaffold</span><button class="tpk-copy" id="tpick-copy">Copy</button></div><pre><code class="hljs" id="tpick-cmd"></code></pre></div>
+        </div>
+        <script>
+          (function () {
+            var TPLS = ["outreach-service", "reply-automation", "analytics-service", "lead-pipeline", "outbound-ops", "minimal"];
+            var tpl = "outreach-service", lang = "js";
+            var tw = document.getElementById("tpick-tpls"), lw = document.getElementById("tpick-langs"), cmd = document.getElementById("tpick-cmd");
+            function render() {
+              tw.innerHTML = TPLS.map(function (t) { return '<button data-t="' + t + '" class="tpk' + (t === tpl ? " on" : "") + '">' + t + "</button>"; }).join("");
+              lw.innerHTML = [["js", "JavaScript"], ["python", "Python"]].map(function (p) { return '<button data-l="' + p[0] + '" class="tpk' + (p[0] === lang ? " on" : "") + '">' + p[1] + "</button>"; }).join("");
+              cmd.textContent = "npx create-instantly-app@latest my-app --template " + tpl + " --" + lang;
+            }
+            tw.addEventListener("click", function (e) { var b = e.target.closest("button[data-t]"); if (b) { tpl = b.getAttribute("data-t"); render(); } });
+            lw.addEventListener("click", function (e) { var b = e.target.closest("button[data-l]"); if (b) { lang = b.getAttribute("data-l"); render(); } });
+            document.getElementById("tpick-copy").addEventListener("click", function () { var b = this; navigator.clipboard.writeText(cmd.textContent); b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy"; }, 1500); });
+            render();
+          })();
+        </script>
         <div class="grid">
           <a class="card" href="#"><div class="t"><span class="ic">◆</span> outreach-service</div><div class="d">Hero: list → enrich + verify → campaign → launch → reply webhook → status. JS + Python.</div></a>
           <a class="card" href="#"><div class="t"><span class="ic">↩</span> reply-automation</div><div class="d">Webhook receiver → classify reply → set interest / auto-respond.</div></a>
           <a class="card" href="#"><div class="t"><span class="ic">▤</span> analytics-service</div><div class="d">Scheduled analytics pull → normalize → JSON feed for a dashboard.</div></a>
           <a class="card" href="#"><div class="t"><span class="ic">⛓</span> lead-pipeline</div><div class="d">SuperSearch → enrich → verify → dedupe → sync to a DB/CRM.</div></a>
+          <a class="card" href="#"><div class="t"><span class="ic">☀</span> outbound-ops</div><div class="d">The daily loop: morning brief (health + what to fix) + incident triage (diagnose → contain).</div></a>
         </div>
       </section>
 

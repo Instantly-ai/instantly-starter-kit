@@ -1,3 +1,6 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Instantly Starter Kit — Docs</title>
 <style>
   :root{
@@ -246,6 +249,8 @@
         <a href="#analytics">Analytics</a>
         <a href="#accounts">Accounts</a>
         <a href="#webhooks">Webhooks</a>
+        <a href="#deliverability">Deliverability</a>
+        <a href="#workspaces">Workspaces</a>
       </div>
       <div class="navgroup"><div class="label">More</div>
         <a href="#templates">Templates</a>
@@ -335,7 +340,7 @@ python 01_auth_smoke_check.py              <span class="hljs-comment"># → list
         <p>From your clone, spin up a ready project — a template + the SDK + <code>AGENTS.md</code> + <code>docs/</code> + <code>llms.txt</code>, wired to run offline:</p>
         <div class="code"><div class="ch"><span class="lang">bash</span><button class="copy">Copy</button></div><pre>node create-instantly-app/index.js my-analytics <span class="tok-k">--template</span> analytics-service <span class="tok-k">--js</span>
 node create-instantly-app/index.js my-outreach  <span class="tok-k">--template</span> outreach-service  <span class="tok-k">--python</span> -y</pre></div>
-        <p class="muted">Templates: <code>outreach-service</code> · <code>reply-automation</code> · <code>analytics-service</code> · <code>lead-pipeline</code> · <code>minimal</code>. Pick a language with <code>--js</code> / <code>--python</code>; skip prompts with <code>-y</code>.</p>
+        <p class="muted">Templates: <code>outreach-service</code> · <code>reply-automation</code> · <code>analytics-service</code> · <code>lead-pipeline</code> · <code>outbound-ops</code> · <code>minimal</code>. Pick a language with <code>--js</code> / <code>--python</code>; skip prompts with <code>-y</code>.</p>
       </section>
 
 <section id="conventions"><div class="eyebrow">Concepts</div><h2>Conventions</h2>
@@ -639,6 +644,9 @@ Job-returning ops include <code>enableWarmupForAccounts</code> / <code>disableWa
 
 <section id="enrichment"><h2>Enrichment (SuperSearch)</h2>
 <p>Find and enrich leads. <strong>SuperSearch</strong> turns a filter query into leads (with work emails, profile data, signals) and can enrich an existing list or campaign. Reach for this group to <em>source</em> an audience from scratch or to fill in missing data. Related: <a href="#leads">leads</a> (where enriched leads land), <a href="#verification">verification</a> (verify before sending).</p>
+<blockquote>
+<p><strong>Runs on Instantly Credits.</strong> Count/preview first (free), then enrich — so credit spend is always a deliberate choice, never a surprise.</p>
+</blockquote>
 <h3>The flow</h3>
 <p><strong>Estimate → enrich → poll.</strong> Preview/count first (cheap, no credits), then enrich (spends credits, runs async).</p>
 <div class="code"><div class="ch"><span class="lang">ts</span><button class="copy">Copy</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> { countLeadsFromSupersearch, previewLeadsFromSupersearch,
@@ -710,6 +718,9 @@ Job-returning ops include <code>enableWarmupForAccounts</code> / <code>disableWa
 
 <section id="verification"><h2>Verification</h2>
 <p>Check that an email address is deliverable <strong>before</strong> you send to it. Verifying protects your sender reputation and keeps bounce rates low — do it before adding leads to a campaign. Related: <a href="#leads">leads</a> (verify on import), <a href="#campaigns">campaigns</a> (<code>allow_risky_contacts</code>), <a href="#conventions">conventions → verify before you send</a>.</p>
+<blockquote>
+<p><strong>Runs on Instantly Credits.</strong> Verifying on import bulk-checks a whole list in one pass, so you spend credits deliberately instead of one address at a time. See <a href="#conventions">costs</a> for what consumes credits.</p>
+</blockquote>
 <h3>Key operations (SDK calls)</h3>
 <div class="code"><div class="ch"><span class="lang">ts</span><button class="copy">Copy</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> { createEmailVerification, checkVerificationStatus } <span class="hljs-keyword">from</span> <span class="hljs-string">&quot;@instantly-ai/sdk&quot;</span>
 
@@ -853,6 +864,9 @@ Job-returning ops include <code>enableWarmupForAccounts</code> / <code>disableWa
 
 <section id="analytics"><h2>Analytics</h2>
 <p>Read sending and performance data for campaigns and accounts. Reach for this group to build dashboards, monitor health, or feed a reporting pipeline. This doc curates the analytics operations that live across the <strong>campaign</strong> and <strong>account</strong> groups. Related: <a href="#campaigns">campaigns</a>, <a href="#accounts">accounts</a>, <a href="#webhooks">webhooks</a> (event aggregates).</p>
+<blockquote>
+<p><strong>This is on your Outreach plan — you already pay for it.</strong> If you check performance in the UI (or not at all), the SDK turns it into a scheduled pull → dashboard/feed. No extra spend.</p>
+</blockquote>
 <h3>Key operations (SDK calls)</h3>
 <div class="code"><div class="ch"><span class="lang">ts</span><button class="copy">Copy</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> { getCampaignAnalytics, getCampaignAnalyticsOverview,
          getDailyCampaignAnalytics, getDailyAccountAnalytics,
@@ -1063,15 +1077,171 @@ Job-returning ops include <code>enableWarmupForAccounts</code> / <code>disableWa
 <p>Example: <a target="_blank" rel="noopener" href="https://github.com/Instantly-ai/instantly-starter-kit/blob/main/js/examples"><code>examples/06-reply-webhook</code></a>. Template: <a target="_blank" rel="noopener" href="https://github.com/Instantly-ai/instantly-starter-kit/blob/main/js/templates/reply-automation"><code>reply-automation</code></a> (receive → classify → route/respond).</p>
 </section>
 
+<section id="deliverability"><h2>Deliverability (warmup &amp; inbox placement)</h2>
+<p>Keep your senders healthy and land in the inbox. This group covers <strong>warmup</strong> (ramp and maintain sender reputation) and <strong>inbox-placement tests</strong> (measure inbox vs spam across ESPs, plus blacklist / SpamAssassin reports). Reach for it to automate the deliverability monitoring that decides whether your campaigns are seen. Related: <a href="#accounts">accounts</a> (sender health fields), <a href="#analytics">analytics</a> (<code>getWarmupAnalytics</code>, daily analytics).</p>
+<blockquote>
+<p><strong>This is on your Outreach plan — you already pay for it.</strong> Warmup and placement monitoring usually live in the UI (or go unwatched). The SDK turns them into a scheduled job so weak senders surface before they cost you replies. No extra spend to read them.</p>
+</blockquote>
+<h3>Warmup</h3>
+<div class="code"><div class="ch"><span class="lang">ts</span><button class="copy">Copy</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> { enableWarmupForAccounts, disableWarmupForAccounts, getWarmupAnalytics, polling } <span class="hljs-keyword">from</span> <span class="hljs-string">&quot;@instantly-ai/sdk&quot;</span>
+
+<span class="hljs-comment">// Read how warmup is progressing (POST with a required `emails` array):</span>
+<span class="hljs-keyword">const</span> analytics = <span class="hljs-keyword">await</span> <span class="hljs-title function_">getWarmupAnalytics</span>(client, { <span class="hljs-attr">body</span>: { <span class="hljs-attr">emails</span>: [<span class="hljs-string">&quot;s1@acme.com&quot;</span>] } })
+
+<span class="hljs-comment">// Enable/disable warmup is a BACKGROUND JOB — poll it to completion:</span>
+<span class="hljs-keyword">const</span> job = <span class="hljs-keyword">await</span> <span class="hljs-title function_">enableWarmupForAccounts</span>(client, { <span class="hljs-attr">body</span>: { <span class="hljs-attr">emails</span>: [<span class="hljs-string">&quot;s1@acme.com&quot;</span>] } })
+<span class="hljs-keyword">await</span> polling.<span class="hljs-title function_">waitForBackgroundJob</span>(client, job.<span class="hljs-property">id</span>)
+</code></pre></div>
+<p>Also: <code>testAccountVitals</code> (health check), and the per-account <code>warmup</code> config + <code>warmup_status</code> on <a href="#accounts">accounts</a>.</p>
+<h3>Inbox placement</h3>
+<div class="code"><div class="ch"><span class="lang">ts</span><button class="copy">Copy</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> { listInboxPlacementTest, createInboxPlacementTest,
+         getInboxPlacementTest, getInboxPlacementBlacklistAndSpamAssassinReport } <span class="hljs-keyword">from</span> <span class="hljs-string">&quot;@instantly-ai/sdk&quot;</span>
+
+<span class="hljs-keyword">const</span> tests = <span class="hljs-keyword">await</span> <span class="hljs-title function_">listInboxPlacementTest</span>(client, { <span class="hljs-attr">query</span>: { <span class="hljs-attr">limit</span>: <span class="hljs-number">20</span> } })   <span class="hljs-comment">// existing tests</span>
+<span class="hljs-comment">// createInboxPlacementTest → run a new test; getInboxPlacementTest({ path: { id } }) → results;</span>
+<span class="hljs-comment">// getInboxPlacementBlacklistAndSpamAssassinReport → blacklist + spam-filter findings for a test.</span>
+</code></pre></div>
+<p>Insights: <code>getInboxPlacementAnalyticsDeliverabilityInsights</code>, <code>getInboxPlacementAnalyticsStatsByDate</code>, <code>getInboxPlacementTestESPOptions</code> (which ESPs to test against).</p>
+<h3>Object shapes that matter</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Set / Read</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>emails</code></td>
+<td><strong>body</strong> (set)</td>
+<td><code>getWarmupAnalytics</code> / <code>enableWarmupForAccounts</code> target senders by email</td>
+</tr>
+<tr>
+<td><code>warmup</code> (<code>limit</code>, <code>reply_rate</code>, <code>increment</code>)</td>
+<td>set</td>
+<td>per-account warmup config (see <a href="#accounts">accounts</a>)</td>
+</tr>
+<tr>
+<td><code>warmup_status</code></td>
+<td><strong>read</strong></td>
+<td>0 Paused, 1 Active, −1 Banned, −2 Spam-folder, −3 Suspension</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td><strong>read</strong></td>
+<td>account health (1 Active, 2 Paused, −1 Connection, −2 Soft bounce, −3 Sending)</td>
+</tr>
+</tbody></table>
+<h3>Gotchas</h3>
+<ul>
+<li><strong>Warmup enable/disable are background jobs</strong> (<code>type: update-warmup-accounts</code>) — poll <code>/background-jobs/{id}</code> with <code>waitForBackgroundJob</code>; don&#39;t treat the call as instant. The op is <strong><code>/disable</code>, not <code>/pause</code></strong>.</li>
+<li><strong><code>getWarmupAnalytics</code> is a <code>POST</code></strong> with a <strong>required <code>emails</code> array</strong> — unusual for a read.</li>
+<li><strong>Warmup takes time.</strong> Reputation ramps over ~2–4 weeks; read analytics on a schedule rather than expecting an immediate change.</li>
+<li><strong>Inbox-placement tests send probe emails</strong> and may consume test quota — treat <code>createInboxPlacementTest</code> as a metered write, not a free read. Read existing results with <code>listInboxPlacementTest</code> / <code>getInboxPlacementTest</code> first.</li>
+<li>A <code>warmup_status</code> of −1/−2/−3 means a sender is in trouble — pause it and, if needed, replace it (Done-For-You warmed mailboxes/domains exist for this).</li>
+</ul>
+<h3>See also</h3>
+<p>Example: <a target="_blank" rel="noopener" href="https://github.com/Instantly-ai/instantly-starter-kit/blob/main/js/examples"><code>examples/08-warmup-and-placement</code></a> (read warmup + placement; enable warmup behind <code>CONFIRM_WARMUP=1</code>). Sender setup: <a href="#accounts">accounts</a>. Warmup analytics also appears in <a href="#analytics">analytics</a>.</p>
+</section>
+
+<section id="workspaces"><h2>Workspaces &amp; admin (agencies / multi-client)</h2>
+<p>Manage the workspace your key belongs to — and, with an <strong>admin-workspace key</strong>, act across the <strong>sub-workspaces</strong> you run for clients. Reach for this group when you&#39;re an agency standing up one service that operates N client accounts, or when you need plan/credit visibility. Related: <a href="#accounts">accounts</a> (<code>moveAccounts</code>), <a href="#conventions">conventions → acting as a sub-workspace</a>.</p>
+<h3>The agency pattern: one admin key, many sub-workspaces</h3>
+<p>You don&#39;t re-authenticate per client. Keep one admin key and switch context with the <code>x-as-workspace</code> header via <code>defaultHeaders</code> — one SDK client per sub-workspace:</p>
+<div class="code"><div class="ch"><span class="lang">ts</span><button class="copy">Copy</button></div><pre><code class="hljs"><span class="hljs-keyword">import</span> { createInstantlyClient, listAccount, getCampaignAnalytics } <span class="hljs-keyword">from</span> <span class="hljs-string">&quot;@instantly-ai/sdk&quot;</span>
+
+<span class="hljs-comment">// same admin key, different context per client:</span>
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">clientFor</span>(<span class="hljs-params"><span class="hljs-attr">subWorkspaceId</span>: <span class="hljs-built_in">string</span></span>) {
+  <span class="hljs-keyword">return</span> <span class="hljs-title function_">createInstantlyClient</span>({ apiKey, <span class="hljs-attr">defaultHeaders</span>: { <span class="hljs-string">&quot;x-as-workspace&quot;</span>: subWorkspaceId } })
+}
+
+<span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> wsId <span class="hljs-keyword">of</span> clientWorkspaceIds) {
+  <span class="hljs-keyword">const</span> client = <span class="hljs-title function_">clientFor</span>(wsId)
+  <span class="hljs-keyword">const</span> accounts  = <span class="hljs-keyword">await</span> <span class="hljs-title function_">listAccount</span>(client, { <span class="hljs-attr">query</span>: { <span class="hljs-attr">limit</span>: <span class="hljs-number">100</span> } })   <span class="hljs-comment">// this client&#x27;s senders</span>
+  <span class="hljs-keyword">const</span> analytics = <span class="hljs-keyword">await</span> <span class="hljs-title function_">getCampaignAnalytics</span>(client, { <span class="hljs-attr">query</span>: {} })       <span class="hljs-comment">// this client&#x27;s campaigns</span>
+}
+</code></pre></div>
+<p>That&#39;s the whole reuse story: build your service once, run it per client by swapping the header. The runnable version is <a target="_blank" rel="noopener" href="https://github.com/Instantly-ai/instantly-starter-kit/blob/main/js/examples"><code>examples/09-multi-workspace</code></a> (JS) / <code>09_multi_workspace.py</code> (Python) — read-only.</p>
+<h3>Key operations (SDK calls)</h3>
+<ul>
+<li><strong>This workspace:</strong> <code>getWorkspace</code>, <code>patchWorkspace</code>, <code>getWorkspaceDomainInfo</code>.</li>
+<li><strong>Plan &amp; credit visibility:</strong> <code>getWorkspacePlanDetails</code> (returns <code>credits.available_credits</code>, <code>plan_name</code>, period) and <code>getWorkspaceSubscriptionDetails</code> — the read behind a &quot;check credits before you spend&quot; preflight (see <a href="#conventions">costs</a>).</li>
+<li><strong>Members:</strong> <code>workspacemember</code>, <code>workspacegroupmember</code> groups.</li>
+<li><strong>Cross-workspace moves (admin):</strong> <code>moveAccounts</code> — move sending accounts between workspaces that share the same admin workspace.</li>
+</ul>
+<h3>Object shapes that matter</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Set / Read</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>x-as-workspace</code></td>
+<td><strong>header</strong> (set)</td>
+<td>the sub-workspace id to act as; admin key required</td>
+</tr>
+<tr>
+<td><code>credits.available_credits</code></td>
+<td><strong>read</strong></td>
+<td><code>getWorkspacePlanDetails</code> — current credit balance</td>
+</tr>
+<tr>
+<td><code>plan_name</code></td>
+<td><strong>read</strong></td>
+<td>e.g. <code>Free Trial</code>, <code>Growth</code></td>
+</tr>
+</tbody></table>
+<h3>Gotchas</h3>
+<ul>
+<li><strong><code>moveAccounts</code> is destructive and admin-only.</strong> Source + destination must share the same admin workspace, and it needs the <code>x-as-workspace</code> context. Guard it — never run it unprompted against a live/shared workspace (<code>AGENTS.md</code>, <a href="#accounts">accounts → moveAccounts</a>). A safe wrapper confirms the target workspace and the exact account emails before calling.</li>
+<li><strong>Isolate per-client failures.</strong> If one client&#39;s workspace lapses (402) or a key scope is missing, catch <code>InstantlyApiError</code> per iteration so one bad client doesn&#39;t abort the whole run.</li>
+<li><strong>Scopes</strong> — admin/cross-workspace flows need the matching <code>workspace*</code> scopes on the admin key (see <a href="#conventions">conventions → scopes</a>).</li>
+</ul>
+<h3>See also</h3>
+<p>Example: <a target="_blank" rel="noopener" href="https://github.com/Instantly-ai/instantly-starter-kit/blob/main/js/examples"><code>examples/09-multi-workspace</code></a>. Cross-workspace account moves: <a href="#accounts">accounts</a>. Credit balance for a spend preflight: <a href="#enrichment">enrichment</a>, <a href="#verification">verification</a>.</p>
+</section>
+
 <section id="templates">
         <div class="eyebrow">More</div>
         <h2>Templates</h2>
-        <p>Runnable services to fork — both languages.</p>
+        <p>Runnable services to fork — both languages. Pick one and copy the command:</p>
+        <style>
+          .tpick-row{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
+          .tpk{padding:6px 12px;border-radius:999px;border:1px solid var(--line,#d0d0d6);background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:14px}
+          .tpk.on{border-color:var(--brand,#006bff);background:var(--brand,#006bff);color:#fff}
+          .tpick .code{margin-top:2px}
+          .tpk-copy{padding:4px 12px;border-radius:6px;border:1px solid var(--line,#30363d);background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:13px}
+        </style>
+        <div class="tpick" id="tpick">
+          <div class="tpick-row" id="tpick-tpls"></div>
+          <div class="tpick-row" id="tpick-langs"></div>
+          <div class="code"><div class="ch"><span class="lang">scaffold</span><button class="tpk-copy" id="tpick-copy">Copy</button></div><pre><code class="hljs" id="tpick-cmd"></code></pre></div>
+        </div>
+        <script>
+          (function () {
+            var TPLS = ["outreach-service", "reply-automation", "analytics-service", "lead-pipeline", "outbound-ops", "minimal"];
+            var tpl = "outreach-service", lang = "js";
+            var tw = document.getElementById("tpick-tpls"), lw = document.getElementById("tpick-langs"), cmd = document.getElementById("tpick-cmd");
+            function render() {
+              tw.innerHTML = TPLS.map(function (t) { return '<button data-t="' + t + '" class="tpk' + (t === tpl ? " on" : "") + '">' + t + "</button>"; }).join("");
+              lw.innerHTML = [["js", "JavaScript"], ["python", "Python"]].map(function (p) { return '<button data-l="' + p[0] + '" class="tpk' + (p[0] === lang ? " on" : "") + '">' + p[1] + "</button>"; }).join("");
+              cmd.textContent = "npx create-instantly-app@latest my-app --template " + tpl + " --" + lang;
+            }
+            tw.addEventListener("click", function (e) { var b = e.target.closest("button[data-t]"); if (b) { tpl = b.getAttribute("data-t"); render(); } });
+            lw.addEventListener("click", function (e) { var b = e.target.closest("button[data-l]"); if (b) { lang = b.getAttribute("data-l"); render(); } });
+            document.getElementById("tpick-copy").addEventListener("click", function () { var b = this; navigator.clipboard.writeText(cmd.textContent); b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy"; }, 1500); });
+            render();
+          })();
+        </script>
         <div class="grid">
           <a class="card" href="#"><div class="t"><span class="ic">◆</span> outreach-service</div><div class="d">Hero: list → enrich + verify → campaign → launch → reply webhook → status. JS + Python.</div></a>
           <a class="card" href="#"><div class="t"><span class="ic">↩</span> reply-automation</div><div class="d">Webhook receiver → classify reply → set interest / auto-respond.</div></a>
           <a class="card" href="#"><div class="t"><span class="ic">▤</span> analytics-service</div><div class="d">Scheduled analytics pull → normalize → JSON feed for a dashboard.</div></a>
           <a class="card" href="#"><div class="t"><span class="ic">⛓</span> lead-pipeline</div><div class="d">SuperSearch → enrich → verify → dedupe → sync to a DB/CRM.</div></a>
+          <a class="card" href="#"><div class="t"><span class="ic">☀</span> outbound-ops</div><div class="d">The daily loop: morning brief (health + what to fix) + incident triage (diagnose → contain).</div></a>
         </div>
       </section>
 

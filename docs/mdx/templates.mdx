@@ -1,0 +1,73 @@
+---
+title: "Templates"
+description: "Runnable service templates to fork — pick a language and template and scaffold in one command."
+---
+
+import TemplatePicker from './components/TemplatePicker'
+
+Each template is a **runnable service you fork**, not a snippet — the SDK is vendored in so it runs offline, and every template ships in both **JavaScript and Python**. Scaffold one with the picker below, or:
+
+```bash
+node create-instantly-app/index.js my-app --template <name> --js   # or --python
+```
+
+<TemplatePicker />
+
+## outreach-service — the hero
+
+The full outbound flow, end to end: turn a list into a launched campaign, then catch the replies.
+
+**What it does:** create a lead list → (optionally) enrich from SuperSearch → add + verify leads → build the campaign as a **draft** → preflight (verified leads + connected senders) → launch → receive replies over a webhook → track run status.
+
+**Ships with:**
+- An HTTP service (`/runs`, `/runs/:id/launch`, `/status`, `/webhooks/replies`) you can deploy as-is.
+- A hardened **preflight** that blocks a launch with zero connected senders and warns on an empty audience.
+- Verification is **opt-in** (`verify=true`) so you never spend credits by accident.
+- Reply webhook with a shared-secret header (Instantly has no HMAC).
+
+**Reach for it when:** you're building a productized outreach service and want the whole loop wired correctly (create-inactive → activate, verify-before-send) from day one.
+
+## reply-automation
+
+A webhook receiver that turns inbound replies into actions.
+
+**What it does:** receives `reply_received` events → classifies the reply → sets the lead's interest status → optionally auto-responds.
+
+**Ships with:** a classifier seam (regex + Instantly's AI reply labels), interest-status mapping, and an actions module you extend with your own routing (CRM, Slack, calendar).
+
+**Reach for it when:** replies are your bottleneck and you want them triaged and routed the moment they land.
+
+## analytics-service
+
+A scheduled analytics pull that feeds a dashboard.
+
+**What it does:** pulls campaign + account analytics on a schedule → normalizes them → serves a clean JSON feed.
+
+**Ships with:** a normalizer that flattens Instantly's analytics shapes into stable fields, and an endpoint your dashboard reads.
+
+**Reach for it when:** you want reporting outside the Instantly UI — a client dashboard, an internal metrics board, or a data pipeline.
+
+## lead-pipeline
+
+Source, enrich, verify, and sync leads into your own system.
+
+**What it does:** SuperSearch (preview-gated, no credits until you confirm) → enrich → verify → dedupe → sync to a DB / CRM.
+
+**Ships with:** a `CONFIRM_ENRICH` gate so credit spend is always deliberate, dedupe flags, and a `sync` seam to wire into your destination.
+
+**Reach for it when:** Instantly is your lead engine and the leads need to land somewhere else (your CRM, warehouse, or app).
+
+## outbound-ops
+
+The recurring daily loop most kits skip — the reason you're still using this in month two.
+
+**What it does:** two commands — **`brief`** (the morning digest: sender health, yesterday's numbers, replies waiting, and the top two things to fix, each with the command to fix it) and **`incident`** (when deliverability tanks: diagnose the likely cause and, on confirm, contain it).
+
+**Ships with:** editable alert thresholds (`lib/thresholds.ts`), read-only-by-default commands, confirm-gated containment (pause worst campaign, drop limits on unhealthy senders), and a SPF/DMARC read-verify. Schedule `brief` with cron for a daily heartbeat.
+
+**Reach for it when:** you're *running* outbound, not just launching it — and want a daily read on health plus a fast path when something breaks.
+
+## minimal
+
+Just the SDK + `AGENTS.md` + docs — a blank canvas with a working auth smoke check. Start here when none of the above fits and you want to build from scratch with the guardrails already in place.
+

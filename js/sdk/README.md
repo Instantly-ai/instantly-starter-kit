@@ -60,13 +60,7 @@ See [`docs/conventions.md`](../../docs/conventions.md) for pagination, rate limi
 
 ## Development
 
-The `src/` tree is **generated** — do not edit it by hand. Regenerate from the spec:
-
-```bash
-python3 docs/context/scripts/internal/build_wrapper_builder_system.py
-```
-
-Package scaffolding (`package.json`, `tsconfig*.json`, this README) is hand-owned and is not overwritten by the generator.
+The `src/` tree is **generated** from `spec/openapi.yaml` — don't edit it by hand; regeneration is maintainer tooling. Package scaffolding (`package.json`, `tsconfig*.json`, this README) is hand-owned and is not overwritten by the generator.
 
 ```bash
 npm run typecheck   # tsc --noEmit

@@ -1,0 +1,53 @@
+# Overview
+
+The Instantly Starter Kit gets you from "I have an Instantly API key" to a **working wrapper service** — using Instantly for the email, deliverability, inbox, and analytics backend, and adding your own audience, logic, and UI on top.
+
+It's built for how people actually build now: a typed SDK your service imports, and an AI-first doc layer your coding agent reads to build correctly.
+
+## The mental model
+
+Two layers, and it helps to keep them straight:
+
+- **Runtime — the SDK.** [`js/sdk`](https://github.com/Instantly-ai/instantly-starter-kit/tree/main/js/sdk) and [`python/sdk`](https://github.com/Instantly-ai/instantly-starter-kit/tree/main/python/sdk), both generated from one OpenAPI spec so they never drift. Your wrapper service imports this. One typed function per operation across all API groups, a single error type, and polling helpers for the async operations.
+- **Build-time — the agent layer.** [`AGENTS.md`](https://github.com/Instantly-ai/instantly-starter-kit/blob/main/AGENTS.md) plus these docs. Your coding agent reads them to understand the API, the conventions, and the flow — so it writes correct code instead of guessing. Not shipped into your production runtime.
+
+There is **no CLI in production**. There's a build-time *scaffolder* (`create-instantly-app`) that stands a project up, but the service you ship just imports the SDK.
+
+## What a wrapper service looks like
+
+A typical service composes a handful of SDK calls around your own logic:
+
+```ts
+import { createInstantlyClient, listCampaign, InstantlyApiError } from "@instantly-ai/sdk"
+
+const client = createInstantlyClient({ apiKey: process.env.INSTANTLY_API_KEY! })
+try {
+  const campaigns = await listCampaign(client, { query: { limit: 10 } })
+} catch (err) {
+  if (err instanceof InstantlyApiError) console.error(err.status, err.payload)
+}
+```
+
+Every call is `fn(client, { path?, query?, body? })` — same shape in both languages (JavaScript `camelCase`, Python `snake_case`).
+
+## The path from here
+
+1. **[Quickstart](quickstart.md)** — clone, set your key, and see a real API response in ~90 seconds.
+2. **[Conventions](conventions.md)** — the cross-cutting rules the whole API assumes (auth, pagination, rate limits, async jobs, **create-inactive → activate**, **verify-before-send**, errors). Read this once; it saves you from the non-obvious failures.
+3. **[Templates](templates.md)** — fork a runnable service (outreach, reply automation, analytics, lead pipeline, daily ops) instead of starting from a blank file.
+4. **API guides** — goal-first, per group: what it's for, the key operations as SDK calls, the shapes that matter, and the gotchas. Start with [Campaigns](api/campaigns.md), [Leads](api/leads.md), and [Accounts](api/accounts.md).
+
+## Conventions at a glance
+
+The ones that bite if you miss them — full detail in [Conventions](conventions.md):
+
+- **Create → activate.** Creating a campaign never sends; it's a draft. Activation is a separate, explicit step behind a preflight (verified leads + connected, warmed senders).
+- **Verify before send.** Verify recipients first. Verification and enrichment spend credits, so they're always opt-in.
+- **Poll async jobs.** Some operations return a job or a `202` — poll it; don't treat it as done.
+- **Errors** throw `InstantlyApiError` with `status` + a parsed `payload`.
+
+## Requirements
+
+- An Instantly account with API access, and an API key (Settings → Integrations → API Keys).
+- Node ≥ 18 for the JavaScript SDK; Python ≥ 3.9 for the Python SDK.
+- A key is read from the environment (`INSTANTLY_API_KEY`) — never hardcoded.

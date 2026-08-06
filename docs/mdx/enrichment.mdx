@@ -1,0 +1,53 @@
+---
+title: "Enrichment (SuperSearch)"
+description: "Find and enrich leads from SuperSearch (credit-based, async)."
+---
+
+Find and enrich leads. **SuperSearch** turns a filter query into leads (with work emails, profile data, signals) and can enrich an existing list or campaign. Reach for this group to *source* an audience from scratch or to fill in missing data. Related: [leads](./leads) (where enriched leads land), [verification](./verification) (verify before sending).
+
+> **Runs on Instantly Credits.** Count/preview first (free), then enrich — so credit spend is always a deliberate choice, never a surprise.
+
+## The flow
+
+**Estimate → enrich → poll.** Preview/count first (cheap, no credits), then enrich (spends credits, runs async).
+
+```ts
+import { countLeadsFromSupersearch, previewLeadsFromSupersearch,
+         enrichLeadsFromSupersearch, getEnrichmentForResource } from "@instantly-ai/sdk"
+
+// 1) Estimate availability BEFORE spending (the API returns `number_of_leads`)
+const { number_of_leads } = await countLeadsFromSupersearch(client, { body: { search_filters } })
+
+// 2) Import + enrich (auto-creates a list if you don't pass resource_id)
+const run = await enrichLeadsFromSupersearch(client, {
+  body: { search_filters, limit: 500, list_name: "Q3 founders", work_email_enrichment: true },
+})
+
+// 3) Enrichment runs in the background — poll for completion
+const progress = await getEnrichmentForResource(client, { path: { resource_id: run.resource_id } })
+```
+
+Also: `createSuperSearchEnrichment` (attach an enrichment to a list/campaign — runs automatically), `createAIEnrichment` (LLM column from a prompt), `runEnrichment` (re-run), `getAiEnrichmentForResource`, `getEnrichmentHistory`, `updateEnrichmentSettingsForResource`, `signalKeywordsFacet` (autocomplete for the Signals filter).
+
+## Object shapes that matter
+
+| Field | Set / Read | Notes |
+|---|---|---|
+| `search_filters` | set (required) | the SuperSearch query (roles, geo, tech, signals, …) |
+| `limit` | set (required) | how many leads to import |
+| `list_name` / `resource_id` | set | omit `resource_id` → a new list is created |
+| `work_email_enrichment`, `fully_enriched_profile`, `signal_enrichment`, `ai_enrichment` | set | enrichment types |
+| `custom_flow` | set | waterfall provider order |
+| `live_list`, `auto_update` | set | auto re-run on a schedule |
+
+## Gotchas
+
+- **`enrichLeadsFromSupersearch` auto-creates a list** when no `resource_id` is given — capture `resource_id` from the response.
+- **Enrichment is asynchronous.** It runs after the call returns; completion is signalled by the webhook `supersearch_enrichment_completed` **or** by polling `getEnrichmentForResource` / `getAiEnrichmentForResource` (`…/ai/{resource_id}/in-progress`).
+- **Always `count`/`preview` first** — enrichment spends credits; counting/previewing does not.
+- Scopes are `supersearch_enrichments:{read,create,all}` only (no update/delete).
+- `createSuperSearchEnrichment` `type` is **mutually exclusive** with `integration_actions`.
+
+## See also
+Example: [`examples/04-enrich-supersearch`](https://github.com/Instantly-ai/instantly-starter-kit/blob/main/js/examples). Templates: [`lead-pipeline`](https://github.com/Instantly-ai/instantly-starter-kit/blob/main/js/templates/lead-pipeline), [`outreach-service`](https://github.com/Instantly-ai/instantly-starter-kit/blob/main/js/templates/outreach-service). Then [verification](./verification) → [campaigns](./campaigns).
+

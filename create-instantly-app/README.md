@@ -21,7 +21,7 @@ node create-instantly-app/index.js my-outreach  --template outreach-service  --p
 | Flag | Values |
 |---|---|
 | `[dir]` | target directory |
-| `--template <name>` | `outreach-service` · `reply-automation` · `analytics-service` · `lead-pipeline` · `minimal` |
+| `--template <name>` | `outreach-service` · `reply-automation` · `analytics-service` · `lead-pipeline` · `outbound-ops` · `minimal` |
 | `--js` / `--python` (`--lang`) | target language |
 | `--sdk <local\|npm>` | how the SDK dep is wired — `local` (default) vendors it into the project so it runs offline / pre-publish; `npm` uses the published package |
 | `--no-install` | skip installing dependencies |
