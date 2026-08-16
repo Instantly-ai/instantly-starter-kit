@@ -1,0 +1,20 @@
+# Next build output (incl. isolated .next-<name> verify/preview builds)
+/.next*/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Dependencies
+node_modules/
+
+# Secrets / local env — never commit real keys
+.env
+.env.local
+
+# Non-npm lockfiles (this app standardizes on package-lock.json)
+bun.lock
+
+# Vendored SDK + ops — a local-only artifact for standalone-folder deploy
+# (`npm run vendor`). The committed default depends on the monorepo siblings
+# (file:../../sdk, file:../../ops), so this is never committed.
+vendor/

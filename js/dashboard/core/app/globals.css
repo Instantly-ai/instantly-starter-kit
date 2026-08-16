@@ -1,0 +1,51 @@
+@import "../config/tokens.css";
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  background: var(--page);
+  color: var(--body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+a { color: var(--brand); text-decoration: none; }
+a:hover { filter: brightness(1.1); }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+@keyframes ia-spin { to { transform: rotate(360deg); } }
+@keyframes ia-shimmer { 0% { opacity: .5; } 50% { opacity: 1; } 100% { opacity: .5; } }
+@keyframes ia-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* Per-navigation content ease-in (re-keyed by route in ContentFade). */
+.content-fade { animation: ia-fade .18s ease both; }
+
+/* Tactile feedback on interactive elements. */
+button:not(:disabled), a { transition: background-color .12s ease, border-color .12s ease, color .12s ease, transform .07s ease, box-shadow .12s ease; }
+button:not(:disabled):active { transform: scale(.975); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, .content-fade { animation: none !important; transition: none !important; }
+}
+
+tr.dt-row > td { transition: background .1s ease; }
+tr.dt-row:hover > td { background: var(--page); }
+
+.rail-btn:hover { background: var(--brand-active); color: var(--brand); }
+.toc-link:hover { background: var(--neutral-pill); color: var(--ink); }
+
+@media print {
+  .no-print { display: none !important; }
+  /* Force a clean light document for the PDF, whatever the on-screen theme. */
+  :root {
+    --brand-soft: rgba(0, 128, 255, .10); --brand-active: #eaf2ff;
+    --ink: rgba(0,0,0,.87); --body: rgba(0,0,0,.72); --muted: #5f5f5f; --faint: #8a8f98;
+    --surface: #ffffff; --page: #ffffff; --border: #e5e7eb; --border-strong: #d1d5db;
+    --rail: #ffffff; --track: #eef0f5; --neutral-pill: #eef0f5; --card-shadow: none;
+  }
+  html, body { background: #fff !important; }
+  main { padding: 0 !important; }
+}
+.ws-item:hover { background: var(--page); }

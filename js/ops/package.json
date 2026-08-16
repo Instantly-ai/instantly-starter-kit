@@ -1,0 +1,23 @@
+{
+  "name": "@instantly-ai/ops",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Higher-level Instantly operations (reads, rollups, workflows) over @instantly-ai/sdk — the shared domain core for the CLI templates and the dashboard. Server-side only.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "files": ["dist", "src"],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "@instantly-ai/sdk": "file:../sdk"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.2"
+  }
+}

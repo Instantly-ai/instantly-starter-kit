@@ -32,7 +32,7 @@ Companies build productized outreach services on top of Instantly — using it f
 
 ## Contents
 
-[Clone & scaffold](#clone--scaffold) · [Build with AI](#build-with-ai) · [What's inside](#whats-inside) · [Using the SDK](#using-the-sdk) · [Conventions](#conventions) · [API reference](#api-reference) · [Templates](#templates) · [Examples](#examples) · [The scaffolder](#the-scaffolder) · [Docs & llms.txt](#docs--llmstxt) · [How the SDKs are built](#how-the-sdks-are-built) · [Repository layout](#repository-layout)
+[Clone & scaffold](#clone--scaffold) · [Build with AI](#build-with-ai) · [What's inside](#whats-inside) · [Using the SDK](#using-the-sdk) · [Conventions](#conventions) · [API reference](#api-reference) · [Templates](#templates) · [Agency Console](#agency-console-a-full-dashboard) · [Examples](#examples) · [The scaffolder](#the-scaffolder) · [Docs & llms.txt](#docs--llmstxt) · [How the SDKs are built](#how-the-sdks-are-built) · [Repository layout](#repository-layout)
 
 ## Clone & scaffold
 
@@ -145,6 +145,36 @@ Runnable service skeletons to fork (`create-instantly-app --template <name>`):
 | **outbound-ops** | run the daily loop — morning brief (health + what to fix) + incident triage (diagnose → contain) | JS + Python |
 | **minimal** | just the SDK + `AGENTS.md` + docs — a blank canvas | JS + Python |
 
+## Agency Console (a full dashboard)
+
+A complete, **self-hosted whitelabel dashboard** built on the SDK — a working
+reference for a real product, not a snippet. One Next.js app that reads your key
+server-side, fans out across client workspaces (agency mode), and ships no
+secret to the browser. No auth, no database.
+
+<p align="center">
+  <img src="js/dashboard/core/public/docs/overview.png" alt="Agency console overview" width="820">
+</p>
+
+```bash
+cd js/dashboard/core
+npm run setup                    # builds the SDK + ops (in order), then installs the app
+echo "INSTANTLY_API_KEY=your_key_here" > .env
+npm run dev                      # http://localhost:3000
+# or explore with zero setup — synthetic data, no key:
+NEXT_PUBLIC_DEMO=1 npm run dev
+```
+
+Overview · Campaigns (+ drill-down) · Inbox (+ reply-thread drill-down) ·
+Deliverability · Analytics · Leads (CSV import) · Enrichment · Verification —
+each fanning out across clients. Whitelabel via three env vars, deploys
+standalone, and includes a webhook receiver + async job polling as build-stack
+patterns.
+
+→ **[js/dashboard/README.md](js/dashboard/README.md)** (screenshots, quickstart,
+whitelabel, deploy) · **[js/dashboard/REFERENCE.md](js/dashboard/REFERENCE.md)**
+(architecture + the `js/ops` domain core).
+
 ## Examples
 
 Nine copy-paste snippets, one task each, in [`js/examples`](js/examples) and [`python/examples`](python/examples):
@@ -187,7 +217,7 @@ instantly-starter-kit/
 ├── AGENTS.md                 # agent entry point
 ├── spec/openapi.yaml         # source of truth (28 groups / 168 ops)
 ├── docs/                     # quickstart · conventions · api/* · index.html (docs site)
-├── js/    { sdk, examples, templates/* }
+├── js/    { sdk, ops, examples, templates/*, dashboard/ }   # dashboard = the Agency Console
 ├── python/{ sdk, examples, templates/* }
 ├── create-instantly-app/     # the scaffolder
 ├── scripts/                  # docs-site generator (build-docs.mjs)
