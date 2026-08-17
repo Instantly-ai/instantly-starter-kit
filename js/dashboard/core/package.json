@@ -1,0 +1,27 @@
+{
+  "name": "instantly-agency-dashboard",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Agency console — a whitelabel Next.js dashboard over the Instantly SDK. Self-hosted, no auth, no DB.",
+  "scripts": {
+    "setup": "npm --prefix ../../sdk install && npm --prefix ../../ops install && npm install",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "vendor": "node scripts/vendor.mjs"
+  },
+  "dependencies": {
+    "next": "^14.2.35",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "@instantly-ai/ops": "file:../../ops",
+    "@instantly-ai/sdk": "file:../../sdk"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.5.4"
+  }
+}

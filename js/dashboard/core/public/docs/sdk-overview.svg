@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 476" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <!-- card -->
+  <rect x="1" y="1" width="758" height="474" rx="18" fill="#17181b" stroke="#2a2c31"/>
+
+  <!-- header -->
+  <text x="34" y="50" font-size="23" font-weight="600" fill="#ededf0">@instantly-ai/sdk</text>
+  <text x="34" y="76" font-size="13.5" fill="#8a8f98">One typed client per language — generated from the OpenAPI spec.</text>
+
+  <!-- flow: your code → sdk → api -->
+  <!-- box 1 -->
+  <rect x="34" y="108" width="196" height="64" rx="10" fill="#202226" stroke="#2f3239"/>
+  <text x="132" y="136" text-anchor="middle" font-size="14.5" font-weight="600" fill="#ededf0">Your service</text>
+  <text x="132" y="156" text-anchor="middle" font-size="11.5" fill="#8a8f98">JS / Python</text>
+  <!-- arrow 1 -->
+  <line x1="236" y1="140" x2="272" y2="140" stroke="#0080ff" stroke-width="2"/>
+  <path d="M271 135 L280 140 L271 145 Z" fill="#0080ff"/>
+  <!-- box 2 (highlighted) -->
+  <rect x="282" y="108" width="196" height="64" rx="10" fill="#10233b" stroke="#0080ff"/>
+  <text x="380" y="136" text-anchor="middle" font-size="14" font-weight="600" fill="#4aa0ff">@instantly-ai/sdk</text>
+  <text x="380" y="156" text-anchor="middle" font-size="11.5" fill="#9bb4d4">typed client</text>
+  <!-- arrow 2 -->
+  <line x1="484" y1="140" x2="520" y2="140" stroke="#0080ff" stroke-width="2"/>
+  <path d="M519 135 L528 140 L519 145 Z" fill="#0080ff"/>
+  <!-- box 3 -->
+  <rect x="530" y="108" width="196" height="64" rx="10" fill="#202226" stroke="#2f3239"/>
+  <text x="628" y="136" text-anchor="middle" font-size="14.5" font-weight="600" fill="#ededf0">Instantly API</text>
+  <text x="628" y="156" text-anchor="middle" font-size="11.5" fill="#8a8f98">28 groups · 168 ops</text>
+
+  <!-- feature grid 2×2 -->
+  <circle cx="38" cy="210" r="3.5" fill="#0080ff"/>
+  <text x="52" y="215" font-size="13.5" fill="#c9cbd1">One method per API operation</text>
+  <circle cx="400" cy="210" r="3.5" fill="#0080ff"/>
+  <text x="414" y="215" font-size="13.5" fill="#c9cbd1">JS + Python from one spec</text>
+  <circle cx="38" cy="248" r="3.5" fill="#0080ff"/>
+  <text x="52" y="253" font-size="13.5" fill="#c9cbd1">InstantlyApiError — one error shape</text>
+  <circle cx="400" cy="248" r="3.5" fill="#0080ff"/>
+  <text x="414" y="253" font-size="13.5" fill="#c9cbd1">Async jobs → polling helpers</text>
+
+  <!-- code sample -->
+  <rect x="34" y="284" width="692" height="124" rx="10" fill="#0e0f12" stroke="#26282d"/>
+  <g font-family="'SFMono-Regular', Menlo, Consolas, monospace" font-size="13.5">
+    <text x="54" y="318"><tspan fill="#c678dd">const</tspan><tspan fill="#c9cbd1"> client = </tspan><tspan fill="#4aa0ff">createInstantlyClient</tspan><tspan fill="#c9cbd1">({ apiKey })</tspan></text>
+    <text x="54" y="348"><tspan fill="#c678dd">const</tspan><tspan fill="#c9cbd1"> campaigns = </tspan><tspan fill="#c678dd">await</tspan><tspan fill="#c9cbd1"> client.campaigns.</tspan><tspan fill="#4aa0ff">list</tspan><tspan fill="#c9cbd1">()</tspan></text>
+    <text x="54" y="378" fill="#6f737a">// fully typed → Campaign[] · throws InstantlyApiError</text>
+  </g>
+
+  <!-- caption -->
+  <text x="34" y="446" font-size="12.5" fill="#8a8f98">The same typed surface powers the dashboard, server-side, via the <tspan fill="#c9cbd1" font-weight="600">js/ops</tspan> layer.</text>
+</svg>
